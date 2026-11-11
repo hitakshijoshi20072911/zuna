@@ -49,7 +49,7 @@ const api = { listProducts: () => Promise.resolve(getProducts()), getProduct: id
 
 function renderHome() {
   const marquee = ['HANDMADE GOODS', 'CONSIDERED OFFERS', 'MAKER-LED COMMERCE', 'MADE TO STAY'];
-  return `<div class="home-experience">
+  return `<div class="home-experience" data-home-experience data-chapter="opening">
     <section class="home-hero" data-home-hero>
       <div class="home-hero-grid">
         <div class="home-hero-kicker"><span>01</span><span>Slow commerce<br>for a faster world</span></div>
@@ -187,6 +187,7 @@ function renderRoute() {
   app.focus({ preventScroll: true });
   closeMobileMenu();
   initialiseReveals();
+  updateHomeDynamics();
 }
 
 function navigationMarkup() {
@@ -198,7 +199,34 @@ function navigationMarkup() {
 function updateNavigation() { const nav = document.querySelector('#primary-navigation'); if (nav) nav.innerHTML = navigationMarkup(); }
 function closeMobileMenu() { document.querySelector('.primary-navigation')?.classList.remove('is-open'); document.querySelector('.menu-toggle')?.setAttribute('aria-expanded', 'false'); document.body.classList.remove('menu-open'); }
 function initialiseReveals() { const items = document.querySelectorAll('.reveal'); if (!('IntersectionObserver' in window)) { items.forEach(item => item.classList.add('is-visible')); return; } const observer = new IntersectionObserver(entries => entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); } }), { threshold: .12 }); items.forEach(item => observer.observe(item)); }
-function initialiseMotion() { const bar = document.querySelector('#scroll-progress-bar'); let ticking = false; const update = () => { const total = document.documentElement.scrollHeight - window.innerHeight; const progress = total > 0 ? (window.scrollY / total) * 100 : 0; if (bar) bar.style.width = `${progress}%`; const hero = document.querySelector('[data-home-hero]'); if (hero) { const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; const offset = reduced ? 0 : Math.min(window.scrollY, 720); hero.style.setProperty('--scroll-shift', Math.round(offset * .045)); document.querySelectorAll('[data-parallax]').forEach(element => { const factor = Number(element.dataset.parallax) || 0; element.style.setProperty('--parallax-y', Math.round(offset * factor)); }); } ticking = false; }; window.addEventListener('scroll', () => { if (!ticking) { window.requestAnimationFrame(update); ticking = true; } }, { passive: true }); update(); }
+function initialiseMotion() { const bar = document.querySelector('#scroll-progress-bar'); let ticking = false; const update = () => { const total = document.documentElement.scrollHeight - window.innerHeight; const progress = total > 0 ? (window.scrollY / total) * 100 : 0; if (bar) bar.style.width = `${progress}%`; const hero = document.querySelector('[data-home-hero]'); if (hero) { const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; const offset = reduced ? 0 : Math.min(window.scrollY, 720); hero.style.setProperty('--scroll-shift', Math.round(offset * .045)); document.querySelectorAll('[data-parallax]').forEach(element => { const factor = Number(element.dataset.parallax) || 0; element.style.setProperty('--parallax-y', Math.round(offset * factor)); }); } updateHomeDynamics(); ticking = false; }; window.addEventListener('scroll', () => { if (!ticking) { window.requestAnimationFrame(update); ticking = true; } }, { passive: true }); window.addEventListener('resize', update, { passive: true }); update(); }
+function updateHomeDynamics() {
+  const experience = document.querySelector('[data-home-experience]');
+  if (!experience) return;
+  const scenes = [
+    ['opening', '[data-home-hero]'], ['edit', '.home-intro'], ['maker', '.home-feature-stage'],
+    ['choose', '.home-capabilities'], ['collection', '.home-collection'], ['join', '.home-invite']
+  ].map(([name, selector]) => ({ name, element: experience.querySelector(selector) })).filter(scene => scene.element);
+  if (!scenes.length) return;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const center = window.innerHeight * 0.52;
+  let current = scenes[0];
+  let nearestDistance = Infinity;
+  scenes.forEach(scene => {
+    const bounds = scene.element.getBoundingClientRect();
+    const sceneCenter = Math.max(bounds.top, Math.min(center, bounds.bottom));
+    const distance = Math.abs(center - sceneCenter);
+    if (distance < nearestDistance) { nearestDistance = distance; current = scene; }
+  });
+  experience.dataset.chapter = current.name;
+  experience.style.setProperty('--ambient-shift', `${Math.round((window.scrollY / Math.max(document.documentElement.scrollHeight - window.innerHeight, 1)) * 100)}%`);
+  experience.querySelectorAll('.home-big-statement, .home-feature-copy h2, .home-invite-panel h2, .home-title').forEach(heading => {
+    const bounds = heading.getBoundingClientRect();
+    const distance = Math.abs((bounds.top + bounds.height / 2) - center);
+    const emphasis = reduced ? 0 : Math.max(0, 1 - distance / (window.innerHeight * 0.72));
+    heading.style.setProperty('--focus-scale', (1 + emphasis * 0.065).toFixed(3));
+  });
+}
 function updateWishlist(id) { if (state.wishlist.has(id)) state.wishlist.delete(id); else state.wishlist.add(id); renderRoute(); }
 function updateMarketplaceFilter(target) { const key = target.dataset.filter; const cursor = key === 'query' ? target.selectionStart : null; if (key === 'query') state.marketplace.query = target.value; else if (key) state.marketplace[key] = target.value; renderRoute(); if (key === 'query') { const search = document.querySelector('#product-search'); search?.focus(); if (cursor !== null) search?.setSelectionRange(cursor, cursor); } }
 function clearMarketplaceFilters() { state.marketplace = { ...state.marketplace, query: '', category: 'all', price: 'all', availability: 'all', offers: 'all', sort: 'featured' }; renderRoute(); }
@@ -228,6 +256,20 @@ document.addEventListener('click', event => {
   if (event.target.closest('[data-clear-filters]')) { clearMarketplaceFilters(); return; }
   if (event.target.closest('[data-reset-session]')) { event.preventDefault(); resetDemoSession(); return; }
   if (event.target.closest('.primary-navigation a')) closeMobileMenu();
+});
+document.addEventListener('pointermove', event => {
+  if (event.pointerType === 'touch') return;
+  const frame = event.target.closest('.product-image-wrap');
+  if (!frame) return;
+  const bounds = frame.getBoundingClientRect();
+  frame.style.setProperty('--glow-x', `${Math.round(((event.clientX - bounds.left) / bounds.width) * 100)}%`);
+  frame.style.setProperty('--glow-y', `${Math.round(((event.clientY - bounds.top) / bounds.height) * 100)}%`);
+});
+document.addEventListener('pointerdown', event => {
+  const card = event.target.closest('.product-card');
+  if (!card) return;
+  card.classList.add('is-touched');
+  window.setTimeout(() => card.isConnected && card.classList.remove('is-touched'), 700);
 });
 document.addEventListener('input', event => { if (event.target.matches('[data-filter="query"]')) updateMarketplaceFilter(event.target); });
 document.addEventListener('change', event => { if (event.target.matches('[data-filter]') && event.target.dataset.filter !== 'query') updateMarketplaceFilter(event.target); });
