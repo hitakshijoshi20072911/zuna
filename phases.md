@@ -173,7 +173,7 @@ Create branch `manus/phase-01-foundation`. Open one PR into `main`. Do not merge
 Create branch `manus/phase-02-marketplace` from the latest merged `main`. Open a PR; do not merge.
 
 **Status:** Implemented on `manus/phase-02-marketplace`; PR pending review
-**PR:** —
+**PR:** https://github.com/hitakshijoshi20072911/zuna/pull/2
 **Notes / decisions:** Added working local search across product metadata, category/price/availability/open-to-offers filters, featured/price/recent sorting, clear-filter and no-results states, demo wishlist state, loading state, reusable safe-rendered product cards, product detail routes with gallery thumbnails, seller story, stock status and a disabled offer-entry shell. Added missing-image fallback handling and retained the Phase 1 design system. All catalogue data remains illustrative mock data; API adapter functions stay in explicit demo mode and no offer or wishlist state is persisted to a backend.
 
 ---
