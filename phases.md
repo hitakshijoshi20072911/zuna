@@ -141,7 +141,7 @@ Use shared components and tabs where appropriate. A route may render a view with
 Create branch `manus/phase-01-foundation`. Open one PR into `main`. Do not merge it. Wait for the repository owner to review and merge.
 
 **Status:** Implemented on `manus/phase-01-foundation`; PR pending review  
-**PR:** —  
+**PR:** https://github.com/hitakshijoshi20072911/zuna/pull/1  
 **Notes / decisions:** Built the responsive editorial homepage, shared shell, mobile navigation, hash router, route placeholders, demo product cards, native reveal/parallax/progress motion, reduced-motion fallback, Vercel root rewrite and local original image assets. Product labels, prices and maker identities are explicitly fictional demo data. Phase 1 intentionally does not implement authentication, backend calls, pricing logic, negotiation persistence or payments. Browser and responsive checks are recorded in the PR description.
 
 ---
