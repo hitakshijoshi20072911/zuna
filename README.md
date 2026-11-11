@@ -1,13 +1,13 @@
 # Zuna frontend
 
-Zuna is an AI-assisted negotiation and social-commerce marketplace concept for Indian artisans, MSMEs and home-based businesses. This repository currently contains the **Phase 1 static frontend** only.
+Zuna is an AI-assisted negotiation and social-commerce marketplace concept for Indian artisans, MSMEs and home-based businesses. This repository currently contains the **Phase 2 static frontend**: the Phase 1 brand foundation plus marketplace discovery and product detail demo flows.
 
 ## Stack
 
 - HTML5, CSS3 and Vanilla JavaScript (ES6+)
 - One entry point: `frontend/home.html`
 - Primary application files: `frontend/home.html`, `frontend/index.css`, `frontend/index.js`
-- Local editorial JPG assets under `frontend/assets/images/`
+- Local editorial WebP assets under `frontend/assets/images/`
 - No framework, bundler or UI library
 
 ## Local preview
@@ -26,12 +26,13 @@ Then open `http://localhost:4173/`. Because the entry point is `home.html`, the 
 The frontend uses hash routes from the single HTML entry point:
 
 - `#/` — homepage
-- `#/marketplace` — Phase 1 marketplace preview with sample cards
-- Other product, account, dashboard, collaboration and checkout routes — designed placeholders for later phases
+- `#/marketplace` — Phase 2 marketplace with local search, category/price/availability/offer filters, sort modes, wishlist state and empty/loading states
+- `#/product/:id` — Phase 2 product detail with gallery, seller story, stock state and a disabled offer-entry shell
+- Other account, dashboard, collaboration and checkout routes — designed placeholders for later phases
 
 ## Demo limitations
 
-Products, maker labels, prices and interactions are illustrative sample data. Phase 1 does not implement authentication, FastAPI calls, AI pricing, negotiation persistence, Razorpay checkout or a database. No payment, login or seller operation is represented as successful. Later phases will add the buyer, seller and creator flows behind backend validation.
+Products, maker labels, prices and interactions are illustrative sample data. Phase 2 does not implement authentication, FastAPI calls, AI pricing, live offer submission, negotiation persistence, Razorpay checkout or a database. Wishlist state exists only in the current browser session, and the offer panel is intentionally disabled until the negotiation phase. No payment, login or seller operation is represented as successful. Later phases will add buyer, seller and creator flows behind backend validation.
 
 ## Vercel setup
 
