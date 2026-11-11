@@ -205,9 +205,9 @@ Create branch `manus/phase-02-marketplace` from the latest merged `main`. Open a
 
 Create branch `manus/phase-03-roles-dashboards`. Open a PR; do not merge.
 
-**Status:** Not started  
+**Status:** Implemented on `manus/phase-03-roles-dashboards`; PR pending review  
 **PR:** —  
-**Notes / decisions:** —
+**Notes / decisions:** Added in-memory demo sessions for buyer, seller and creator roles; login/register validation with password visibility toggles and understandable inline errors; role-aware shared navigation; buyer, seller and creator dashboards; seller product list/add/edit flows; direct-route guards and role-mismatch states; empty saved-products state; inventory-age indicators; and responsive Phase 3 styling. Password values are validated only during form submission and are never copied into session state or browser storage. Product and wishlist changes are session-only and reset on refresh or the shared Reset control. Validation evidence: `node --check frontend/index.js`, source smoke checks, browser route checks for register, seller dashboard and seller-to-buyer mismatch, no browser console output, plus responsive screenshots in `qa-phase-3/` (`register-desktop.png`, `register-mobile.png`, `seller-dashboard-desktop.webp`, `role-mismatch-desktop.webp`). FastAPI authentication/authorization and persistence remain intentionally out of scope.
 
 ---
 
