@@ -36,4 +36,6 @@ Products, maker labels, prices and interactions are illustrative sample data. Ph
 
 ## Vercel setup
 
-Import the repository into Vercel with `frontend` as the Root Directory, framework preset **Other**, no build command and `.` as the output directory. The included `frontend/vercel.json` rewrites `/` to `/home.html`. The repository owner must connect and verify Vercel; deployment has not been claimed from this repository workflow.
+Import the repository into Vercel with `frontend` as the Root Directory, framework preset **Other**, no build command and `.` as the output directory. With that recommended setting, `frontend/vercel.json` rewrites `/` to `/home.html`.
+
+For projects that were already created with the repository root as Root Directory, the root-level `vercel.json` provides a compatibility rewrite from `/` to `/frontend/home.html`; this keeps the current production project from returning a root 404 while its Vercel setting is corrected. Do not set a build command or install dependencies. After changing Root Directory, redeploy and verify `/`, `/#/marketplace`, `/frontend/index.css` (root deployment) or `/index.css` (frontend-root deployment), and `/frontend/index.js` or `/index.js` respectively. The repository owner must connect and verify Vercel; deployment is not claimed until the public production URL returns the Zuna page.
