@@ -101,3 +101,17 @@
 .home-experience[data-chapter="join"] .home-invite-panel{background-color:#586044}
 .home-big-statement,.home-feature-copy h2,.home-invite-panel h2,.home-title{transform:scale(var(--focus-scale,1));transform-origin:left center;transition:transform .16s linear}
 @media (prefers-reduced-motion:reduce){.home-experience,.home-experience::before,.home-intro,.home-capabilities,.home-feature-stage,.home-collection,.home-invite-panel,.home-big-statement,.home-feature-copy h2,.home-invite-panel h2,.home-title{transition:none!important}.home-experience::before{display:none}.home-big-statement,.home-feature-copy h2,.home-invite-panel h2,.home-title{transform:none!important}}
+
+/* Tactile cards: quiet lift, richer color and a pointer-led pool of warm light. */
+.product-card-link{position:relative;display:block;transform:translateY(0);transition:transform .42s cubic-bezier(.2,.72,.2,1),filter .42s ease;will-change:transform}
+.product-card:is(:hover,:focus-within,.is-touched) .product-card-link{transform:translateY(-7px);filter:drop-shadow(0 14px 18px rgba(49,14,16,.12))}
+.product-image-wrap{isolation:isolate}
+.product-image-wrap::after{content:"";position:absolute;z-index:1;inset:0;pointer-events:none;background:radial-gradient(circle at var(--glow-x,50%) var(--glow-y,50%),rgba(244,227,178,.52),rgba(148,114,104,.1) 34%,transparent 63%);mix-blend-mode:soft-light;opacity:0;transition:opacity .4s ease}
+.product-card:is(:hover,:focus-within,.is-touched) .product-image-wrap::after{opacity:1}
+.product-card:is(:hover,:focus-within,.is-touched) .product-image{transform:scale(1.055);filter:saturate(1.08) contrast(1.025)}
+.product-info h3{transition:color .3s ease}
+.product-card:is(:hover,:focus-within,.is-touched) .product-info h3{color:var(--blood)}
+.wishlist-button{transition:background-color .25s ease,color .25s ease,transform .25s ease}
+.wishlist-button:hover,.wishlist-button:focus-visible{transform:scale(1.08)}
+@media (hover:none){.product-card:active .product-card-link{transform:translateY(-4px)}}
+@media (prefers-reduced-motion:reduce){.product-card-link,.product-image-wrap::after,.product-info h3,.wishlist-button{transition:none!important;will-change:auto}.product-card:is(:hover,:focus-within,.is-touched) .product-card-link,.product-card:is(:hover,:focus-within,.is-touched) .product-image{transform:none}.product-card:is(:hover,:focus-within,.is-touched) .product-image-wrap::after{opacity:.3}}
