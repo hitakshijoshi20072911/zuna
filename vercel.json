@@ -1,5 +1,9 @@
 {
   "rewrites": [
+    { "source": "/index.css", "destination": "/frontend/index.css" },
+    { "source": "/index.js", "destination": "/frontend/index.js" },
+    { "source": "/assets/:path*", "destination": "/frontend/assets/:path*" },
+    { "source": "/manus-routes.json", "destination": "/frontend/manus-routes.json" },
     { "source": "/", "destination": "/frontend/home.html" }
   ]
 }
