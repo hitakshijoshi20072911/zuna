@@ -1,6 +1,6 @@
 # Zuna frontend
 
-Zuna is an AI-assisted negotiation and social-commerce marketplace concept for Indian artisans, MSMEs and home-based businesses. This repository currently contains the **Phase 3 static frontend**: the Phase 1 brand foundation, Phase 2 marketplace discovery and Phase 3 authentication UI plus role-based demo experiences.
+Zuna is an AI-assisted negotiation and social-commerce marketplace concept for Indian artisans, MSMEs and home-based businesses. This repository currently contains the **Phase 5 integration-ready static frontend**: the Phase 1 brand foundation, Phase 2 marketplace discovery and Phase 3 authentication UI plus role-based demo experiences.
 
 ## Stack
 
@@ -34,11 +34,14 @@ The frontend uses hash routes from the single HTML entry point:
 - `#/seller/products` — seller product table with add and edit actions
 - `#/seller/products/new` and `#/seller/products/:id/edit` — validated product forms for session-only demo listings
 - `#/creator` — creator profile and collaboration summary
-- Later pricing, offers, collaborations and checkout routes remain designed placeholders for later phases
+- `#/collaborations` — creator opportunity discovery with request states and demo referral-link handling
+- `#/seller/offers` — seller negotiation workspace with explicit pending/countered/accepted/rejected states
+- `#/checkout` and `#/order-confirmation` — backend-authoritative demo checkout and verification boundary screens
+- `docs/frontend-api-contract.md` — FastAPI/Razorpay handoff contract
 
 ## Demo limitations
 
-Products, maker labels, prices, offers, orders, creator metrics and interactions are illustrative sample data. Phase 3 uses an explicit **in-memory demo session** only: it is not secure authentication, does not store plaintext passwords, and does not provide authorization. Enter any fictional email and a password of at least eight characters, choose a role, and use the Reset control or refresh the page to clear the session. Product add/edit changes and wishlist changes last only until refresh/reset. FastAPI, database persistence, real authentication, AI pricing, live offer submission, negotiation persistence and Razorpay checkout are not implemented. No payment, login or seller operation is represented as successful.
+Products, maker labels, prices, offers, orders, creator metrics and interactions are illustrative sample data. Phase 3 uses an explicit **in-memory demo session** only: it is not secure authentication, does not store plaintext passwords, and does not provide authorization. Enter any fictional email and a password of at least eight characters, choose a role, and use the Reset control or refresh the page to clear the session. Product add/edit changes and wishlist changes last only until refresh/reset. FastAPI, database persistence, real authentication, AI pricing, negotiation persistence, creator approvals and Razorpay checkout remain unconnected. Phase 5 screens are mock-mode only and never claim payment, verification or conversion success. No payment, login or seller operation is represented as successful.
 
 ## Phase 3 demo walkthrough
 
