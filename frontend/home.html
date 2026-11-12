@@ -3,18 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#74070E">
-  <meta name="description" content="Zuna is a thoughtful marketplace for handcrafted goods, considered offers and maker-led commerce.">
-  <title>Zuna — A marketplace of stories</title>
+  <meta name="theme-color" content="#310E10">
+  <meta name="description" content="Find your thing. Make your deal. Zuna is a marketplace for good finds, fair offers and real connections.">
+  <title>Zuna — Find your thing. Make your deal.</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Rozha+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./index.css">
+  <link rel="stylesheet" href="./phase35.css">
   <script src="./index.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#app">Skip to content</a>
+  <div class="preloader" data-preloader role="status" aria-live="polite">
+    <div class="preloader-grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="preloader-copy"><span class="preloader-mark">Z</span><strong>Zuna</strong><small>Find your thing. Make your deal.</small></div>
+    <button class="preloader-skip" type="button" data-skip-loader>Skip entrance</button>
+  </div>
   <div class="scroll-progress" aria-hidden="true"><span id="scroll-progress-bar"></span></div>
   <div id="site-shell">
     <div class="announcement" role="status">
@@ -24,11 +30,11 @@
       <a class="wordmark" href="#/" aria-label="Zuna home"><span class="wordmark-mark" aria-hidden="true">Z</span><span>Zuna</span></a>
       <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation"><span class="sr-only">Toggle navigation</span><span></span><span></span></button>
       <nav id="primary-navigation" class="primary-navigation" aria-label="Primary navigation">
-        <a href="#/marketplace">Marketplace</a>
-        <a href="#/story">Our story</a>
-        <a href="#/seller">For makers</a>
+        <a href="#/marketplace">Discover</a>
+        <a href="#/marketplace">Categories</a>
+        <a href="#/seller">For businesses</a>
         <a href="#/creator">For creators</a>
-        <div class="nav-actions"><a class="icon-link" href="#/marketplace" aria-label="Search the marketplace">⌕</a><a class="icon-link" href="#/login" aria-label="Open account">◌</a><a class="button button-dark button-small" href="#/marketplace">Explore <span aria-hidden="true">↗</span></a></div>
+        <div class="nav-actions"><a class="icon-link" href="#/marketplace" aria-label="Search the marketplace">⌕</a><button class="icon-link theme-toggle" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme">◐</button><a class="icon-link" href="#/login" aria-label="Open account">◌</a><a class="button button-dark button-small" href="#/marketplace">Explore <span aria-hidden="true">↗</span></a></div>
       </nav>
     </header>
     <main id="app" tabindex="-1"></main>
