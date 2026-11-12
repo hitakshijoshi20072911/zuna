@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/index.css", "destination": "/frontend/index.css" },
     { "source": "/index.js", "destination": "/frontend/index.js" },
+    { "source": "/phase35.css", "destination": "/frontend/phase35.css" },
     { "source": "/assets/:path*", "destination": "/frontend/assets/:path*" },
     { "source": "/manus-routes.json", "destination": "/frontend/manus-routes.json" },
     { "source": "/", "destination": "/frontend/home.html" }

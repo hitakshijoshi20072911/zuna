@@ -1,10 +1,10 @@
 # Zuna — Frontend Development Phases
 
-**Project:** Zuna — AI-Powered Negotiation & Social Commerce Marketplace  
-**Repository:** `https://github.com/hitakshijoshi20072911/zuna`  
-**Frontend stack:** HTML5, CSS3, Vanilla JavaScript (ES6+)  
-**Backend planned separately:** Python + FastAPI  
-**Database planned separately:** SQLite + SQLAlchemy  
+**Project:** Zuna — AI-Powered Negotiation & Social Commerce Marketplace
+**Repository:** `https://github.com/hitakshijoshi20072911/zuna`
+**Frontend stack:** HTML5, CSS3, Vanilla JavaScript (ES6+)
+**Backend planned separately:** Python + FastAPI
+**Database planned separately:** SQLite + SQLAlchemy
 **Deployment target:** Vercel (static frontend initially)
 
 > This file is the working source of truth for the frontend roadmap. Update the status, implementation notes, screenshots, decisions and known issues at the end of every phase. Do not mark work complete unless it exists in the repository and has been checked.
@@ -140,8 +140,8 @@ Use shared components and tabs where appropriate. A route may render a view with
 
 Create branch `manus/phase-01-foundation`. Open one PR into `main`. Do not merge it. Wait for the repository owner to review and merge.
 
-**Status:** Implemented on `manus/phase-01-foundation`; PR pending review  
-**PR:** https://github.com/hitakshijoshi20072911/zuna/pull/1  
+**Status:** Implemented on `manus/phase-01-foundation`; PR pending review
+**PR:** https://github.com/hitakshijoshi20072911/zuna/pull/1
 **Notes / decisions:** Built the responsive editorial homepage, shared shell, mobile navigation, hash router, route placeholders, demo product cards, native reveal/parallax/progress motion, reduced-motion fallback, Vercel root rewrite and local original image assets. Product labels, prices and maker identities are explicitly fictional demo data. Phase 1 intentionally does not implement authentication, backend calls, pricing logic, negotiation persistence or payments. Browser and responsive checks are recorded in the PR description.
 
 ---
@@ -205,9 +205,17 @@ Create branch `manus/phase-02-marketplace` from the latest merged `main`. Open a
 
 Create branch `manus/phase-03-roles-dashboards`. Open a PR; do not merge.
 
-**Status:** Implemented on `manus/phase-03-roles-dashboards`; PR pending review  
-**PR:** —  
+**Status:** Implemented on `manus/phase-03-roles-dashboards`; PR pending review
+**PR:** —
 **Notes / decisions:** Added in-memory demo sessions for buyer, seller and creator roles; login/register validation with password visibility toggles and understandable inline errors; role-aware shared navigation; buyer, seller and creator dashboards; seller product list/add/edit flows; direct-route guards and role-mismatch states; empty saved-products state; inventory-age indicators; and responsive Phase 3 styling. Password values are validated only during form submission and are never copied into session state or browser storage. Product and wishlist changes are session-only and reset on refresh or the shared Reset control. Validation evidence: `node --check frontend/index.js`, source smoke checks, browser route checks for register, seller dashboard and seller-to-buyer mismatch, no browser console output, plus responsive screenshots in `qa-phase-3/` (`register-desktop.png`, `register-mobile.png`, `seller-dashboard-desktop.webp`, `role-mismatch-desktop.webp`). FastAPI authentication/authorization and persistence remain intentionally out of scope.
+
+---
+
+# Phase 3.5 — Visual identity, original assets and immersive homepage
+
+**Status:** Implemented on `manus/homepage-lenis-refresh`; PR #6 pending owner review
+**PR:** https://github.com/hitakshijoshi20072911/zuna/pull/6
+**Notes / decisions:** Reworked the homepage into the “Mela Modern” story order: tiled entrance, buyer/seller tagline, category mosaic, negotiation explainer, seller pricing preview, creator network, 12-item broad catalogue, three entry points and closing statement. Added persistent light/dark theme selection, reduced-motion-safe loader/marquee/parallax behavior, local product illustrations under `frontend/assets/generated/products/`, `docs/design-reference-board.md`, `docs/asset-manifest.md`, and the root Vercel rewrite for `phase35.css`. The 12 product illustrations are lightweight original SVGs created locally because the native image-generation quota was unavailable in the prior run; existing original raster assets remain in place. Authentication, marketplace filtering, dashboards and seller forms were preserved. Phase 4 smart pricing and negotiation workflows remain intentionally out of scope.
 
 ---
 
@@ -241,8 +249,8 @@ Create branch `manus/phase-03-roles-dashboards`. Open a PR; do not merge.
 
 Create branch `manus/phase-04-pricing-negotiation`. Open a PR; do not merge.
 
-**Status:** Not started  
-**PR:** —  
+**Status:** Not started
+**PR:** —
 **Notes / decisions:** —
 
 ---
@@ -281,8 +289,8 @@ Create branch `manus/phase-04-pricing-negotiation`. Open a PR; do not merge.
 
 Create branch `manus/phase-05-integration-readiness`. Open a PR; do not merge.
 
-**Status:** Not started  
-**PR:** —  
+**Status:** Not started
+**PR:** —
 **Notes / decisions:** —
 
 ---
