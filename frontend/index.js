@@ -194,7 +194,16 @@ function navigationMarkup() {
 }
 function updateNavigation() { const nav = document.querySelector('#primary-navigation'); if (nav) nav.innerHTML = navigationMarkup(); }
 function closeMobileMenu() { document.querySelector('.primary-navigation')?.classList.remove('is-open'); document.querySelector('.menu-toggle')?.setAttribute('aria-expanded', 'false'); document.body.classList.remove('menu-open'); }
-function initialiseReveals() { const items = document.querySelectorAll('.reveal'); if (!('IntersectionObserver' in window)) { items.forEach(item => item.classList.add('is-visible')); return; } const observer = new IntersectionObserver(entries => entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); } }), { threshold: .12 }); items.forEach(item => observer.observe(item)); }
+function initialiseReveals() {
+  const selector = '.reveal, .stat-card, .dashboard-panel, .form-panel, .access-card, .pricing-preview, .offer-panel, .category-tile, .join-cards a, .creator-card, .product-card, .table-panel';
+  const items = [...document.querySelectorAll(selector)];
+  items.forEach(item => item.classList.add('motion-item'));
+  if (!('IntersectionObserver' in window)) { items.forEach(item => item.classList.add('is-visible')); return; }
+  const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+    if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); }
+  }), { threshold: .1, rootMargin: '0px 0px -6% 0px' });
+  items.forEach(item => observer.observe(item));
+}
 function initialiseMotion() { const bar = document.querySelector('#scroll-progress-bar'); let ticking = false; const update = () => { const total = document.documentElement.scrollHeight - window.innerHeight; const progress = total > 0 ? (window.scrollY / total) * 100 : 0; if (bar) bar.style.width = `${progress}%`; const hero = document.querySelector('[data-home-hero]'); if (hero) { const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; const offset = reduced ? 0 : Math.min(window.scrollY, 720); hero.style.setProperty('--scroll-shift', Math.round(offset * .045)); document.querySelectorAll('[data-parallax]').forEach(element => { const factor = Number(element.dataset.parallax) || 0; element.style.setProperty('--parallax-y', Math.round(offset * factor)); }); } updateHomeDynamics(); ticking = false; }; window.addEventListener('scroll', () => { if (!ticking) { window.requestAnimationFrame(update); ticking = true; } }, { passive: true }); window.addEventListener('resize', update, { passive: true }); update(); }
 function updateHomeDynamics() {
   const experience = document.querySelector('[data-home-experience]');
