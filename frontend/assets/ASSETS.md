@@ -11,3 +11,6 @@ The five JPG files in `images/` were generated specifically for this project wit
 | `artisan.webp` | Homepage maker spotlight | Original generated workshop scene; fictional demo maker, no identifiable real person. |
 
 All product names, maker labels, prices and categories shown in the interface are illustrative sample data and are not claims about real inventory or sellers.
+
+
+The continuation adds local GPT-generated JPG product photographs under `generated/products/` and fictional creator portraits under `generated/creators/`. They are original demo assets with no external hotlinks, logos or copied identities.
