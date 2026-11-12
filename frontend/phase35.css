@@ -31,3 +31,23 @@ html[data-theme="dark"] .creator-collaboration-section{background:#294735}
 @media (max-width:900px){.creator-collaboration-heading{align-items:start;flex-direction:column;gap:1.5rem}.creator-collaboration-actions{max-width:24rem}.creator-carousel-foot{align-items:start;flex-direction:column;gap:.35rem}}
 @media (max-width:700px){.theme-toggle-attention::after{right:auto;left:-.5rem}.creator-collaboration-section{padding-right:0}.creator-collaboration-heading{padding-right:1.2rem}.creator-carousel{padding-right:1.2rem}.creator-card{flex-basis:78vw}.creator-carousel-foot{padding-right:1.2rem}}
 @media (prefers-reduced-motion:reduce){.theme-toggle-attention,.theme-toggle-attention::after{animation:none}.creator-card-image img,.carousel-button{transition:none}.creator-carousel{scroll-behavior:auto}}
+
+/* Loader continuation — a slower, tactile entrance using the local catalogue imagery. */
+.preloader{animation:preloaderFailsafe 5.4s forwards}
+.preloader-grid{gap:10px;padding:10px;transform:rotate(-8deg) scale(1.14)}
+.preloader-grid .preloader-tile{position:relative;display:block;overflow:hidden;background:var(--blood);animation:tileIn 1.25s cubic-bezier(.2,.8,.2,1) both;isolation:isolate}
+.preloader-grid .preloader-tile::after{content:'';position:absolute;inset:0;background:linear-gradient(145deg,rgba(49,14,16,.06),rgba(49,14,16,.5));mix-blend-mode:multiply;transition:opacity .35s ease}
+.preloader-grid .preloader-tile img{display:block;width:100%;height:100%;object-fit:cover;filter:saturate(.78) contrast(1.02);opacity:.9;transform:scale(1.08);transition:transform .7s cubic-bezier(.2,.8,.2,1),filter .35s ease,opacity .35s ease}
+.preloader-grid .preloader-tile:hover img,.preloader-grid .preloader-tile:focus-visible img{transform:scale(1.18);filter:saturate(1.08) contrast(1.05);opacity:1}
+.preloader-grid .preloader-tile:hover::after,.preloader-grid .preloader-tile:focus-visible::after{opacity:.2}
+.preloader-grid .preloader-tile:nth-child(2n){background:var(--jade)}
+.preloader-grid .preloader-tile:nth-child(3n){background:var(--vanilla)}
+.preloader-grid .preloader-tile:nth-child(4n){background:var(--marigold)}
+.preloader-grid .preloader-tile:nth-child(2){background:var(--blood)}
+.preloader-grid .preloader-tile:nth-child(5){background:var(--jade)}
+.preloader-grid .preloader-tile:nth-child(8){background:var(--bean)}
+.preloader-grid .preloader-tile:nth-child(3n) img{object-position:center 28%}
+.preloader-copy{filter:drop-shadow(0 8px 24px rgba(49,14,16,.25))}
+.preloader-copy small{opacity:.88}
+@keyframes preloaderFailsafe{0%,94%{visibility:visible;opacity:1}100%{visibility:hidden;opacity:0}}
+@media (prefers-reduced-motion:reduce){.preloader{animation:none}.preloader-grid .preloader-tile img{transition:none}.preloader-grid .preloader-tile::after{transition:none}}
