@@ -1,6 +1,6 @@
 # Zuna asset manifest
 
-The existing raster files under `frontend/assets/images/` are original project assets already present on the branch. The Phase 3.5 product set is a lightweight local SVG illustration collection created for this demo when the native image-generation quota was unavailable; it contains no external links, logos or copied photography.
+The existing raster files under `frontend/assets/images/` are original project assets already present on the branch. The continuation adds GPT-generated local JPG product photography and creator portraits for the catalogue and collaboration rail; there are no external links, logos or copied photography.
 
 | Path | Role | Format | Alt-text intent |
 |---|---|---|---|
@@ -16,3 +16,6 @@ The existing raster files under `frontend/assets/images/` are original project a
 | `frontend/assets/generated/products/low-stool.svg` | Low timber stool product card | SVG | A small wooden stool |
 | `frontend/assets/generated/products/name-note-set.svg` | Personalised note set product card | SVG | A personalised stationery set |
 | `frontend/assets/generated/products/custom-phone-case.svg` | Custom phone case product card | SVG | A bright custom phone case |
+
+| `frontend/assets/generated/products/*.jpg` | GPT-generated product photography for the most visible catalogue items | Original fictional product scenes, cohesive warm Indian editorial direction, no logos or text. |
+| `frontend/assets/generated/creators/*.jpg` | GPT-generated fictional creator portraits for the collaboration carousel | Original fictional people and profiles; used only as demo collaboration content. |
