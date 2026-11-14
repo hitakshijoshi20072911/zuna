@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="knitted coaster set sample">
+  <rect width="800" height="1000" fill="#e9e4d8"/>
+  <g fill="#c27c5c" stroke="#f1d8ae" stroke-width="14">
+    <circle cx="300" cy="390" r="105"/><circle cx="500" cy="390" r="105"/>
+    <circle cx="300" cy="610" r="105"/><circle cx="500" cy="610" r="105"/>
+  </g>
+  <g fill="none" stroke="#8a5141" stroke-width="10">
+    <circle cx="300" cy="390" r="76"/><circle cx="500" cy="390" r="76"/>
+    <circle cx="300" cy="610" r="76"/><circle cx="500" cy="610" r="76"/>
+  </g>
+  <g fill="#e8c994"><circle cx="300" cy="390" r="28"/><circle cx="500" cy="390" r="28"/><circle cx="300" cy="610" r="28"/><circle cx="500" cy="610" r="28"/></g>
+  <text x="54" y="930" fill="#5a453b" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / KNITTED COASTERS</text>
+</svg>

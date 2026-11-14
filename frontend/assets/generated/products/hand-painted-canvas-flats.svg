@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="hand-painted canvas flats sample">
+  <rect width="800" height="1000" fill="#e9e2d6"/>
+  <path d="M95 605c94-30 170-117 221-225l91 90-39 198H145c-61 0-88-28-50-63z" fill="#f5eee2" stroke="#6d5448" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M392 605c94-30 170-117 221-225l91 90-39 198H442c-61 0-88-28-50-63z" fill="#f5eee2" stroke="#6d5448" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M180 535q40-75 87-13t73-41M478 535q40-75 87-13t73-41" fill="none" stroke="#bd5c47" stroke-width="18" stroke-linecap="round"/>
+  <path d="M120 669h252M417 669h252" stroke="#c7a86c" stroke-width="14" stroke-linecap="round"/>
+  <text x="54" y="930" fill="#4c4039" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / PAINTED CANVAS</text>
+</svg>

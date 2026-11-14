@@ -1,7 +1,10 @@
 /* Zuna — Phase 3 authentication UI and role-based marketplace experiences */
 'use strict';
 
-const CONFIG = { apiBaseUrl: '', demoMode: true };
+const CONFIG = {
+  apiBaseUrl: window.ZUNA_API_BASE_URL || document.querySelector('meta[name="zuna-api-base-url"]')?.content || '/api/v1',
+  demoMode: false
+};
 const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000"%3E%3Crect width="800" height="1000" fill="%23f4e3b2"/%3E%3Cpath d="M160 650h480v120H160z" fill="%2374070e" opacity=".18"/%3E%3Ccircle cx="400" cy="430" r="130" fill="none" stroke="%2374070e" stroke-width="12" opacity=".6"/%3E%3Ctext x="400" y="875" text-anchor="middle" fill="%23310e10" font-family="Arial" font-size="28" letter-spacing="4"%3EZUNA SAMPLE IMAGE%3C/text%3E%3C/svg%3E';
 
 // All catalogue and dashboard values are fictional demo data. No password is stored.
@@ -19,7 +22,7 @@ const PRODUCTS = [
   { id: 'name-note-set', name: 'Personalised note set', maker: 'Fictional paper goods studio', seller: 'Demo stationery business', region: 'Demo location', price: 650, cost: 240, image: './assets/generated/products/name-note-set.svg', offers: false, available: true, category: 'Gifts & Stationery', tags: ['stationery','gift','personalised'], addedOrder: 2, stock: 'Available · sample stock', stockQty: 30, age: 7, description: 'A personalised note set for thank-yous, reminders and small kindnesses.', story: 'A fictional paper goods studio making correspondence feel worth keeping.' },
   { id: 'custom-phone-case', name: 'Custom phone case', maker: 'Fictional everyday design shop', seller: 'Demo personalised business', region: 'Demo location', price: 850, cost: 360, image: './assets/generated/products/custom-phone-case.svg', offers: true, available: false, category: 'Custom & Personalised', tags: ['phone','custom','everyday'], addedOrder: 1, stock: 'Currently unavailable · sample data', stockQty: 0, age: 72, description: 'A bright custom phone case made to feel unmistakably yours.', story: 'A fictional everyday design shop turning small accessories into personal statements.' }
 ];
-const CATEGORIES = ['Style & Accessories', 'Fashion & Footwear', 'Home, Living & Objects', 'Tech & Gadgets', 'Custom & Personalised', 'Art & Collectibles', 'Gifts & Stationery', 'Handmade & Crochet', 'Jewellery'];
+const CATEGORIES = ['Style & Accessories', 'Fashion & Footwear', 'Home, Living & Objects', 'Tech & Gadgets', 'Custom & Personalised', 'Art & Collectibles', 'Gifts & Stationery', 'Handmade & Crochet', 'Jewellery', 'Everyday Finds'];
 const ROLE_LABELS = { buyer: 'Buyer', seller: 'Seller', creator: 'Creator' };
 const CREATOR_PROFILES = [
   { name: 'Ava Menon', handle: '@avamakes', focus: 'Objects · slow living', image: './assets/generated/creators/ava-menon.jpg', note: 'Makes everyday rituals feel considered.' },
@@ -38,20 +41,43 @@ const MOCK_OFFER = { id: 'offer-demo-01', productId: 'sculptural-lamp', offeredP
   { actor: 'Seller demo', amount: 3000, status: 'Countered', time: 'Today · 10:21' }
 ] };
 
-const ROUTE_LABELS = { marketplace: 'Marketplace', product: 'Product detail', login: 'Login', register: 'Register', buyer: 'Buyer dashboard', seller: 'Seller dashboard', collaborations: 'Collaboration marketplace', checkout: 'Checkout', 'order-confirmation': 'Order confirmation', story: 'Our story' };
+const ROUTE_LABELS = { marketplace: 'Marketplace', product: 'Product detail', login: 'Login', register: 'Register', buyer: 'Buyer dashboard', seller: 'Seller dashboard', collaborations: 'Collaboration marketplace', checkout: 'Checkout', buy: 'Checkout', 'order-confirmation': 'Order confirmation', story: 'Our story' };
 const state = {
   wishlist: new Set(),
   marketplace: { query: '', category: 'all', price: 'all', availability: 'all', offers: 'all', sort: 'featured', ready: false },
-  products: PRODUCTS.map(product => ({ ...product })),
+  products: [],
+  sellerProducts: [],
+  offers: [],
+  orders: [],
+  opportunities: [],
+  referrals: [],
+  pricingSuggestion: null,
+  pricingInput: { unit_cost: 820, target_margin_percent: 35, inventory_age_days: 0, demand_index: 50 },
   demoSession: null,
   flash: '',
-  offer: { ...MOCK_OFFER },
+  offer: null,
+  checkoutProduct: null,
+  selectedSizes: {},
+  acceptedOfferPrompt: null,
+  dismissedOfferPrompts: new Set(),
+  offerPollError: '',
+  checkoutOrder: null,
   collaborationRequests: {},
-  referralCode: ''
+  referralCode: '',
+  apiError: ''
 };
+let routeRequest = 0;
+let productsLoaded = false;
 
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character])); }
 function formatPrice(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0); }
+function hasStock(product) { return product.available !== false && Number(product.stockQty) > 0; }
+function productSizes(product) { return Array.isArray(product.sizes) && product.sizes.length ? product.sizes : ['One size']; }
+function formatDeliveryDate(delivery) {
+  if (!delivery?.date) return '';
+  return new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' })
+    .format(new Date(`${delivery.date}T00:00:00+05:30`));
+}
 function slugify(value) { return String(value).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 42) || 'sample-product'; }
 function roleLabel(role) { return ROLE_LABELS[role] || 'Demo visitor'; }
 function getProducts() { return state.products; }
@@ -60,25 +86,86 @@ function currentUser() { return state.demoSession; }
 function isRole(role) { return currentUser()?.role === role; }
 function consumeFlash() { const message = state.flash; state.flash = ''; return message; }
 function showFormMessage(form, message, type = 'error') { const element = form.querySelector('[data-form-message]'); if (element) { element.textContent = message; element.className = `form-message ${type}`; element.setAttribute('role', type === 'error' ? 'alert' : 'status'); } }
-function demoNote(text = 'Demo only · fictional data · no backend is connected') { return `<p class="demo-note demo-note-block">${escapeHtml(text)}</p>`; }
+function demoNote(text = 'Listings and activity are provided by the Zuna API.') { return `<p class="demo-note demo-note-block">${escapeHtml(text)}</p>`; }
+function offerPromptDismissalKey(offerId) { return `${currentUser()?.id}:${offerId}`; }
+function isOfferPromptDismissed(offerId) {
+  const key = offerPromptDismissalKey(offerId);
+  if (state.dismissedOfferPrompts.has(key)) return true;
+  try {
+    const stored = JSON.parse(localStorage.getItem(`zuna-dismissed-offer-prompts:${currentUser()?.id}`) || '[]');
+    if (Array.isArray(stored) && stored.includes(offerId)) {
+      state.dismissedOfferPrompts.add(key);
+      return true;
+    }
+  } catch (error) {}
+  return false;
+}
+function rememberOfferPromptDismissed(offerId) {
+  const key = offerPromptDismissalKey(offerId);
+  state.dismissedOfferPrompts.add(key);
+  try {
+    const storageKey = `zuna-dismissed-offer-prompts:${currentUser()?.id}`;
+    const stored = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const dismissed = Array.isArray(stored) ? stored : [];
+    if (!dismissed.includes(offerId)) dismissed.push(offerId);
+    localStorage.setItem(storageKey, JSON.stringify(dismissed));
+  } catch (error) {}
+}
 
 function productCard(product) {
   const saved = state.wishlist.has(product.id);
-  return `<article class="product-card reveal"><a class="product-card-link" href="#/product/${encodeURIComponent(product.id)}" aria-label="View ${escapeHtml(product.name)}"><div class="product-image-wrap"><img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)} handmade craft sample" loading="lazy" data-fallback-image="true"><span class="product-badge">${product.offers ? 'Open to offers' : 'Sample edit'}</span></div><div class="product-info"><h3>${escapeHtml(product.name)}</h3><div class="product-meta"><span>${escapeHtml(product.maker)}</span><span class="product-price">${formatPrice(product.price)}</span></div></div></a><button class="wishlist-button ${saved ? 'is-saved' : ''}" type="button" data-wishlist="${escapeHtml(product.id)}" aria-pressed="${saved}" aria-label="${saved ? 'Remove' : 'Save'} ${escapeHtml(product.name)}">${saved ? '♥' : '♡'}</button></article>`;
+  const inStock = hasStock(product);
+  const stockLabel = inStock ? `In stock · ${product.stockQty}` : 'Out of stock';
+  return `<article class="product-card reveal"><a class="product-card-link" href="#/product/${encodeURIComponent(product.id)}" aria-label="View ${escapeHtml(product.name)}"><div class="product-image-wrap"><img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}${product.isSample ? ' sample' : ''}" loading="lazy" data-fallback-image="true"><span class="product-badge ${inStock ? 'is-available' : 'is-unavailable'}">${escapeHtml(stockLabel)}</span></div><div class="product-info"><h3>${escapeHtml(product.name)}</h3><div class="product-meta"><span>${escapeHtml(product.maker)}</span><span class="product-price">${formatPrice(product.price)}</span></div></div></a><button class="wishlist-button ${saved ? 'is-saved' : ''}" type="button" data-wishlist="${escapeHtml(product.id)}" aria-pressed="${saved}" aria-label="${saved ? 'Remove' : 'Save'} ${escapeHtml(product.name)}">${saved ? '♥' : '♡'}</button></article>`;
 }
 
 async function apiRequest(path, options = {}) {
-  if (CONFIG.demoMode || !CONFIG.apiBaseUrl) return { demo: true, data: null };
-  const response = await fetch(`${CONFIG.apiBaseUrl}${path}`, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
-  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
-  return response.json();
+  const token = sessionStorage.getItem('zuna-access-token');
+  const response = await fetch(`${CONFIG.apiBaseUrl.replace(/\/$/, '')}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    }
+  });
+  let payload = {};
+  try { payload = await response.json(); } catch (error) { payload = {}; }
+  if (!response.ok) {
+    const message = payload.detail || `The server returned ${response.status}.`;
+    const failure = new Error(typeof message === 'string' ? message : 'Please check the submitted information.');
+    failure.status = response.status;
+    throw failure;
+  }
+  return payload;
 }
-const api = { listProducts: () => Promise.resolve(getProducts()), getProduct: id => Promise.resolve(findProduct(id)) };
+const api = {
+  listProducts: () => apiRequest('/products'),
+  getProduct: id => apiRequest(`/products/${encodeURIComponent(id)}`),
+  register: values => apiRequest('/auth/register', { method: 'POST', body: JSON.stringify(values) }),
+  login: values => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify(values) }),
+  listOffers: () => apiRequest('/offers'),
+  listOrders: () => apiRequest('/orders'),
+  listWishlist: () => apiRequest('/users/me/wishlist'),
+  listOpportunities: () => apiRequest('/collaborations/opportunities'),
+  listReferrals: () => apiRequest('/creator/referrals')
+};
 
 function renderHome() {
   const marquee = ['GOOD FINDS', 'FAIR OFFERS', 'REAL PEOPLE', 'YOUR PRICE, YOUR VOICE', 'DISCOVER', 'MAKE A DEAL'];
-  const categories = ['Style & Accessories','Fashion & Footwear','Home, Living & Objects','Tech & Gadgets','Custom & Personalised','Art & Collectibles','Gifts & Stationery','Handmade & Crochet','Everyday Finds'];
-  const categoryIcons = ['✦','◒','⌂','◉','✎','✺','▱','⌁','✧'];
+  const categories = CATEGORIES;
+  const categoryImages = {
+    'Style & Accessories': './assets/generated/products/brown-leather-satchel.png',
+    'Fashion & Footwear': './assets/generated/products/linen-embroidered-shirt.png',
+    'Home, Living & Objects': './assets/generated/products/sculptural-lamp.jpg',
+    'Tech & Gadgets': './assets/generated/products/headphones-wireless-black.png',
+    'Custom & Personalised': './assets/generated/products/personalized-acrylic-desk-set.png',
+    'Art & Collectibles': './assets/generated/products/botanical-watercolor-prints.png',
+    'Gifts & Stationery': './assets/generated/products/personalized-letterpress-set.png',
+    'Handmade & Crochet': './assets/generated/products/crochet-tote.jpg',
+    Jewellery: './assets/generated/products/silver-hoop-earrings.png',
+    'Everyday Finds': './assets/generated/products/stackable-bento-lunch-box-set.png'
+  };
   const heroSlides = [
     ['./assets/images/hero-craft.webp', 'Colourful still life of objects from a fictional marketplace', 'red'],
     ['./assets/images/artisan.webp', 'Fictional artisan shaping a product by hand', 'green'],
@@ -93,12 +180,11 @@ function renderHome() {
       <div class="home-hero-foot"><span>Independent businesses · broad categories</span><span>Buyer voice / seller control</span></div><span class="home-art-index" aria-hidden="true">Z / 01</span>
     </section>
     <div class="home-marquee" aria-label="Zuna principles"><div class="home-marquee-track">${[...marquee, ...marquee].map(item => `<span>${escapeHtml(item)} <b aria-hidden="true">✦</b></span>`).join('')}</div></div>
-    <section class="home-discover section home-story-section" id="home-discover"><div class="section-inner"><div class="home-section-index"><span>02</span><span>Discover the whole marketplace</span></div><div class="home-discover-head"><div><p class="eyebrow">Not one kind of good</p><h2 class="home-big-statement">Your next<br><em>thing is here.</em></h2></div><p class="home-intro-text">From custom tech to crochet, footwear to furniture, Zuna keeps the door open for good finds across the marketplace.</p></div><div class="category-mosaic">${categories.map((category,index) => `<a class="category-tile category-tile-${(index%5)+1}" href="#/marketplace" data-category-link="${escapeHtml(category)}"><span class="category-visual" aria-hidden="true">${categoryIcons[index]}</span><span>${String(index+1).padStart(2,'0')}</span><strong>${escapeHtml(category)}</strong><b aria-hidden="true">↗</b></a>`).join('')}</div></div></section>
+    <section class="home-discover section home-story-section" id="home-discover"><div class="section-inner"><div class="home-section-index"><span>02</span><span>Discover the whole marketplace</span></div><div class="home-discover-head"><div><p class="eyebrow">Not one kind of good</p><h2 class="home-big-statement">Your next<br><em>thing is here.</em></h2></div><p class="home-intro-text">From custom tech to crochet, footwear to furniture, Zuna keeps the door open for good finds across the marketplace.</p></div><div class="category-mosaic">${categories.map((category,index) => `<a class="category-tile category-tile-${(index%5)+1}" href="#/marketplace" data-category-link="${escapeHtml(category)}"><img class="category-cover" src="${escapeHtml(categoryImages[category])}" alt="" aria-hidden="true" loading="lazy"><span>${String(index+1).padStart(2,'0')}</span><strong>${escapeHtml(category)}</strong><b aria-hidden="true">↗</b></a>`).join('')}</div></div></section>
     <section class="home-feature-stage home-story-section" data-feature-stage><div class="home-feature-image" data-parallax="-.08"><img src="./assets/images/artisan.webp" alt="Fictional business owner working on a product" loading="lazy"><span class="home-image-label">Good products have context</span></div><div class="home-feature-copy"><p class="eyebrow eyebrow-light">03 / Price is a conversation</p><h2>Make an offer that works for you.</h2><p>Buyers can open the conversation. Sellers stay in control of the minimum they will accept. Checkout only comes after a real agreement.</p><div class="offer-timeline"><span><b>01</b> Find something you love.</span><span><b>02</b> Make an offer that works.</span><span><b>03</b> Reach an agreement.</span></div><a class="button button-light" href="#/marketplace">Find something to talk about <span aria-hidden="true">↗</span></a></div><span class="home-feature-index" aria-hidden="true">03 — 04</span></section>
     <section class="home-pricing section home-story-section"><div class="section-inner pricing-story"><div><div class="home-section-index"><span>04</span><span>For businesses</span></div><p class="eyebrow">Know your price</p><h2 class="home-big-statement">Know what it costs.<br><em>Decide what works.</em></h2><p class="section-copy">A clear preview of materials, labour and margin can help a seller make an informed listing decision. The actual pricing workflow arrives in Phase 4.</p><a class="text-link" href="#/seller">Explore the seller space ↗</a></div><div class="pricing-preview" aria-label="Illustrative smart pricing preview"><span class="eyebrow">Preview / demo only</span><div class="pricing-line"><span>Materials + labour</span><b>₹820</b></div><div class="pricing-line"><span>Desired margin</span><b>35%</b></div><div class="pricing-line pricing-total"><span>Suggested listing</span><b>₹1,262</b></div><p>Explainable sample calculation · not an AI prediction</p></div></div></section>
     <section class="home-creator-story creator-collaboration-section home-story-section"><div class="creator-collaboration-heading"><div><p class="eyebrow eyebrow-light">05 / Good products travel further</p><h2>Connect the people who make a thing matter.</h2></div><div class="creator-collaboration-actions"><p>Meet the people who can give a good product its next audience.</p><div class="creator-carousel-controls"><button type="button" class="carousel-button" data-creator-prev aria-label="Show previous creators">←</button><button type="button" class="carousel-button" data-creator-next aria-label="Show next creators">→</button></div></div></div><div class="creator-carousel" data-creator-carousel tabindex="0" aria-label="Content creators available for collaboration">${CREATOR_PROFILES.map(creator => `<article class="creator-card"><div class="creator-card-image"><img src="${escapeHtml(creator.image)}" alt="Portrait of fictional creator ${escapeHtml(creator.name)}" loading="lazy"><span>${escapeHtml(creator.focus)}</span></div><div class="creator-card-copy"><div><h3>${escapeHtml(creator.name)}</h3><p>${escapeHtml(creator.handle)}</p></div><span class="creator-card-note">${escapeHtml(creator.note)}</span><a class="text-link text-link-light" href="#/creator">Collaborate ↗</a></div></article>`).join('')}</div><div class="creator-carousel-foot"><span>Scroll sideways to explore creators</span><span>Fictional profiles · collaboration preview</span></div></section>
-    <section class="home-collection section home-story-section"><div class="section-inner"><div class="home-collection-head"><div class="home-section-index"><span>06</span><span>Current edit</span></div><div><p class="eyebrow">Twelve sample finds</p><h2 class="home-big-statement">Shop the broad<br><em>sample edit.</em></h2></div><a class="text-link" href="#/marketplace">View all pieces ↗</a></div><div class="home-collection-rail">${getProducts().map(product => productCard(product).replace(' reveal','')).join('')}</div></div></section>
-    <section class="home-join section home-story-section"><div class="section-inner"><div class="home-section-index"><span>07</span><span>Choose your way in</span></div><div class="join-cards"><a href="#/marketplace"><span>SHOP</span><h3>Discover & negotiate.</h3><b>Enter the marketplace ↗</b></a><a href="#/seller"><span>SELL</span><h3>Showcase & decide.</h3><b>Build your business ↗</b></a><a href="#/creator"><span>CREATE</span><h3>Connect & share.</h3><b>Find collaborations ↗</b></a></div></div></section>
+    <section class="home-join section home-story-section"><div class="section-inner"><div class="home-section-index"><span>06</span><span>Choose your way in</span></div><div class="join-cards"><a href="#/marketplace"><span>SHOP</span><h3>Discover & negotiate.</h3><b>Enter the marketplace ↗</b></a><a href="#/seller"><span>SELL</span><h3>Showcase & decide.</h3><b>Build your business ↗</b></a><a href="#/creator"><span>CREATE</span><h3>Connect & share.</h3><b>Find collaborations ↗</b></a></div></div></section>
     <section class="home-closing home-story-section"><p class="eyebrow eyebrow-light">Zuna / good finds, better deals</p><h2>Good finds bring us together.<br><em>Better deals make it yours.</em></h2><a class="button button-light" href="#/marketplace">Start exploring <span aria-hidden="true">↗</span></a></section>
   </div>`;
 }
@@ -107,7 +193,7 @@ function getFilteredProducts() {
   const search = query.trim().toLowerCase();
   const filtered = getProducts().filter(product => {
     const searchable = [product.name, product.category, product.maker, product.region, product.description, ...product.tags].join(' ').toLowerCase();
-    return (!search || searchable.includes(search)) && (category === 'all' || product.category === category) && (price === 'all' || (price === 'under-1000' && product.price < 1000) || (price === '1000-2000' && product.price >= 1000 && product.price <= 2000) || (price === 'over-2000' && product.price > 2000)) && (availability === 'all' || (availability === 'available' && product.available) || (availability === 'unavailable' && !product.available)) && (offers === 'all' || (offers === 'open' && product.offers) || (offers === 'closed' && !product.offers));
+    return (!search || searchable.includes(search)) && (category === 'all' || product.category === category) && (price === 'all' || (price === 'under-1000' && product.price < 1000) || (price === '1000-2000' && product.price >= 1000 && product.price <= 2000) || (price === 'over-2000' && product.price > 2000)) && (availability === 'all' || (availability === 'available' && hasStock(product)) || (availability === 'unavailable' && !hasStock(product))) && (offers === 'all' || (offers === 'open' && product.offers) || (offers === 'closed' && !product.offers));
   });
   return filtered.sort((a, b) => sort === 'price-low' ? a.price - b.price : sort === 'price-high' ? b.price - a.price : sort === 'recent' ? b.addedOrder - a.addedOrder : b.offers - a.offers || b.addedOrder - a.addedOrder);
 }
@@ -117,13 +203,40 @@ function renderMarketplace() {
   const results = getFilteredProducts();
   const hasFilters = state.marketplace.query || state.marketplace.category !== 'all' || state.marketplace.price !== 'all' || state.marketplace.availability !== 'all' || state.marketplace.offers !== 'all';
   const grid = results.length ? `<div class="marketplace-grid">${results.map(productCard).join('')}</div>` : `<div class="empty-state" role="status"><span class="empty-mark" aria-hidden="true">◌</span><h2>No pieces found in this edit.</h2><p>Try another search or clear the filters to return to the full sample collection.</p><button class="button button-dark" type="button" data-clear-filters>Clear filters</button></div>`;
-  return `<section class="section marketplace-page"><div class="section-inner"><div class="marketplace-heading"><div><p class="eyebrow">Marketplace · demo mode</p><h1 class="section-title">Find something made to stay.</h1><p class="section-copy">Search the illustrative collection by material, maker, category or mood. Every result is sample data until the FastAPI catalogue exists.</p></div><span class="demo-note">Local demo data · not real inventory</span></div><div class="marketplace-tools"><label class="search-control"><span class="sr-only">Search products</span><input id="product-search" type="search" placeholder="Search pieces, makers or materials" value="${escapeHtml(state.marketplace.query)}" data-filter="query"></label><div class="filter-row">${selectControl('category', 'Category', [['all','All categories'], ...CATEGORIES.map(category => [category, category])], state.marketplace.category)}${selectControl('price', 'Price', [['all','Any price'],['under-1000','Under ₹1,000'],['1000-2000','₹1,000–₹2,000'],['over-2000','Over ₹2,000']], state.marketplace.price)}${selectControl('availability', 'Availability', [['all','All pieces'],['available','Available'],['unavailable','Unavailable']], state.marketplace.availability)}${selectControl('offers', 'Offers', [['all','All offer states'],['open','Open to offers'],['closed','Fixed sample price']], state.marketplace.offers)}${selectControl('sort', 'Sort by', [['featured','Featured'],['price-low','Price: low to high'],['price-high','Price: high to low'],['recent','Recently added']], state.marketplace.sort)}${hasFilters ? '<button class="clear-filter" type="button" data-clear-filters>Clear filters</button>' : ''}</div></div><div class="results-bar"><p><strong>${results.length}</strong> ${results.length === 1 ? 'piece' : 'pieces'} in this edit</p><p class="wishlist-summary">${state.wishlist.size ? `${state.wishlist.size} saved for later` : 'Save pieces to revisit them'}</p></div>${grid}</div></section>`;
+  return `<section class="section marketplace-page"><div class="section-inner"><div class="marketplace-heading"><div><p class="eyebrow">Marketplace</p><h1 class="section-title">Find something made to stay.</h1><p class="section-copy">Search the collection by material, maker, category or mood.</p></div><span class="demo-note">Sample catalog items are marked as illustrative.</span></div><div class="marketplace-tools"><label class="search-control"><span class="sr-only">Search products</span><input id="product-search" type="search" placeholder="Search pieces, makers or materials" value="${escapeHtml(state.marketplace.query)}" data-filter="query"></label><div class="filter-row">${selectControl('category', 'Category', [['all','All categories'], ...CATEGORIES.map(category => [category, category])], state.marketplace.category)}${selectControl('price', 'Price', [['all','Any price'],['under-1000','Under ₹1,000'],['1000-2000','₹1,000–₹2,000'],['over-2000','Over ₹2,000']], state.marketplace.price)}${selectControl('availability', 'Availability', [['all','All pieces'],['available','Available'],['unavailable','Unavailable']], state.marketplace.availability)}${selectControl('offers', 'Offers', [['all','All offer states'],['open','Open to offers'],['closed','Fixed sample price']], state.marketplace.offers)}${selectControl('sort', 'Sort by', [['featured','Featured'],['price-low','Price: low to high'],['price-high','Price: high to low'],['recent','Recently added']], state.marketplace.sort)}${hasFilters ? '<button class="clear-filter" type="button" data-clear-filters>Clear filters</button>' : ''}</div></div><div class="results-bar"><p><strong>${results.length}</strong> ${results.length === 1 ? 'piece' : 'pieces'} in this edit</p><p class="wishlist-summary">${state.wishlist.size ? `${state.wishlist.size} saved for later` : 'Save pieces to revisit them'}</p></div>${grid}</div></section>`;
 }
 function renderProductDetail(id) {
   const product = findProduct(id);
   if (!product) return renderPlaceholder('product', 'We could not find that sample product. Return to the marketplace to browse the current demo edit.');
-  const related = getProducts().filter(item => item.id !== product.id).slice(0, 3);
-  return `<section class="section product-detail"><div class="section-inner"><a class="back-link" href="#/marketplace">← Back to marketplace</a><div class="product-detail-grid"><div class="product-gallery"><div class="gallery-main"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)} handmade craft sample" data-fallback-image="true"></div><div class="gallery-caption"><span>Sample product image</span><span>${escapeHtml(product.region)}</span></div><div class="gallery-strip">${[product, ...related].map(item => `<a href="#/product/${encodeURIComponent(item.id)}" class="gallery-thumb ${item.id === product.id ? 'is-current' : ''}" aria-label="View ${escapeHtml(item.name)}"><img src="${escapeHtml(item.image)}" alt="" data-fallback-image="true"></a>`).join('')}</div></div><div class="product-detail-copy"><p class="eyebrow">${escapeHtml(product.category)} · demo listing</p><h1 class="section-title">${escapeHtml(product.name)}</h1><p class="detail-maker">${escapeHtml(product.maker)} · ${escapeHtml(product.seller)}</p><p class="detail-price">${formatPrice(product.price)} <span>illustrative sample price</span></p><p class="detail-description">${escapeHtml(product.description)}</p><div class="stock-status ${product.available ? 'is-available' : 'is-unavailable'}"><span aria-hidden="true">${product.available ? '●' : '○'}</span>${escapeHtml(product.stock)}</div><div class="seller-story"><p class="eyebrow">The maker's note</p><p>${escapeHtml(product.story)}</p></div><section class="offer-panel" aria-labelledby="offer-heading"><p class="eyebrow">Demo negotiation flow</p><h2 id="offer-heading">Make a thoughtful offer</h2><p>Submit a sample offer, review a seller counter and see the checkout boundary. The backend remains authoritative in live mode.</p><form data-form="offer" novalidate><label for="offer-amount">Your offer in rupees<input id="offer-amount" name="offerAmount" type="number" min="1" inputmode="numeric" placeholder="e.g. 2800" required><small class="field-error" data-error-for="offerAmount"></small></label><button class="button button-dark" type="submit">Send demo offer <span aria-hidden="true">↗</span></button><div class="form-message" data-form-message aria-live="polite"></div></form><p class="demo-note demo-note-block">Demo only · no offer is submitted to a seller or stored on a server</p></section></div></div></div></section>`;
+  const inStock = hasStock(product);
+  const variantGroup = product.variantGroup || product.category;
+  const hasSpecificVariantGroup = variantGroup !== product.category;
+  const related = getProducts().filter(item => item.id !== product.id
+    && hasStock(item)
+    && (item.variantGroup || item.category) === variantGroup);
+  const canOffer = inStock && product.offers;
+  const canBuy = inStock;
+  const varietiesHeading = hasSpecificVariantGroup
+    ? `More in-stock ${variantGroup.toLowerCase()}`
+    : `More available in ${product.category}`;
+  const offerMessage = !inStock
+    ? 'This product is out of stock.'
+    : 'This seller is not accepting offers for this item.';
+  const varieties = related.length ? `<section class="dashboard-panel saved-panel available-varieties" aria-labelledby="varieties-heading"><div class="panel-heading"><div><p class="eyebrow">Available stock</p><h2 id="varieties-heading">${escapeHtml(varietiesHeading)}</h2></div><span class="demo-note">${related.length} other in-stock ${related.length === 1 ? 'option' : 'options'}</span></div><div class="marketplace-grid">${related.map(productCard).join('')}</div></section>` : '';
+  const purchasePanel = canBuy
+    ? `<section class="offer-panel purchase-panel" aria-labelledby="purchase-heading"><p class="eyebrow">Ready when you are</p><h2 id="purchase-heading">Proceed to buy</h2><p>Pay online with UPI, credit or debit card, net banking, or wallets—or choose cash on delivery.</p><a class="button button-dark" href="#/buy/${encodeURIComponent(product.id)}">Proceed to buy <span aria-hidden="true">↗</span></a></section>`
+    : '';
+  const negotiationPanel = canOffer
+      ? `<section class="offer-panel negotiation-panel" aria-labelledby="offer-heading"><p class="eyebrow">Negotiation</p><h2 id="offer-heading">Make a price offer</h2><p>Send a price offer. The seller can accept it or send a counteroffer.</p>${isRole('buyer')
+      ? `<form data-form="offer" data-product-id="${escapeHtml(product.id)}" novalidate><label for="offer-amount">Your offer in rupees<input id="offer-amount" name="offerAmount" type="number" min="1" max="${product.price}" inputmode="numeric" placeholder="e.g. ${Math.round(product.price * .85)}" required><small class="field-error" data-error-for="offerAmount"></small></label><button class="button button-dark" type="submit">Send offer <span aria-hidden="true">↗</span></button><div class="form-message" data-form-message aria-live="polite"></div></form>`
+      : currentUser()
+        ? '<p class="field-help">Sign in with a buyer account to make an offer.</p>'
+        : '<div class="hero-actions"><a class="button button-dark" href="#/login">Sign in to negotiate</a><a class="button" href="#/register">Create a buyer account</a></div>'}</section>`
+      : `<p class="field-help">${escapeHtml(offerMessage)}</p>`;
+  const productActions = canOffer && canBuy
+      ? `<div class="product-action-panels">${negotiationPanel}${purchasePanel}</div>`
+      : `${purchasePanel}${negotiationPanel}`;
+  return `<section class="section product-detail"><div class="section-inner"><a class="back-link" href="#/marketplace">← Back to marketplace</a><div class="product-detail-grid"><div class="product-gallery"><div class="gallery-main"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" data-fallback-image="true"></div><div class="gallery-caption"><span>${product.id.startsWith('sample-') ? 'Sample product image' : 'Product image'}</span><span>${escapeHtml(product.region)}</span></div><div class="gallery-strip">${[product, ...related].map(item => `<a href="#/product/${encodeURIComponent(item.id)}" class="gallery-thumb ${item.id === product.id ? 'is-current' : ''}" aria-label="View ${escapeHtml(item.name)}"><img src="${escapeHtml(item.image)}" alt="" data-fallback-image="true"></a>`).join('')}</div></div><div class="product-detail-copy"><p class="eyebrow">${escapeHtml(product.category)}</p><h1 class="section-title">${escapeHtml(product.name)}</h1><p class="detail-maker">${escapeHtml(product.maker)} · ${escapeHtml(product.seller)}</p><p class="detail-price">${formatPrice(product.price)}</p><p class="detail-description">${escapeHtml(product.description)}</p>${renderSizeControl(product, { name: 'product-size', trackSelection: true })}<div class="stock-status ${inStock ? 'is-available' : 'is-unavailable'}"><span aria-hidden="true">${inStock ? '●' : '○'}</span>${escapeHtml(product.stock || (inStock ? `${product.stockQty} in stock` : 'Out of stock'))}</div><div class="seller-story"><p class="eyebrow">The maker's note</p><p>${escapeHtml(product.story)}</p></div>${productActions}</div></div>${varieties}</div></section>`;
 }
 function renderPlaceholder(route, detail = '') { const label = ROUTE_LABELS[route] || 'This Zuna route'; return `<section class="route-placeholder"><p class="eyebrow">${escapeHtml(label)}</p><h1 class="section-title">A thoughtful next step is taking shape.</h1><p>${detail ? escapeHtml(detail) : 'This screen is reserved for a later build phase. The navigation is live so the experience can be explored without broken links.'}</p><a class="button button-dark" href="#/">Return home ↗</a></section>`; }
 
@@ -131,112 +244,414 @@ function renderAuthCard({ mode }) {
   const isLogin = mode === 'login';
   const flash = consumeFlash();
   const roleOptions = ['buyer', 'seller', 'creator'].map(role => `<label class="role-option"><input type="radio" name="role" value="${role}" ${role === 'buyer' ? 'checked' : ''}><span><strong>${roleLabel(role)}</strong><small>${role === 'buyer' ? 'Offers, orders and saved pieces' : role === 'seller' ? 'Listings, stock and product tools' : 'Profile and collaboration summary'}</small></span></label>`).join('');
-  const roleFields = isLogin ? `<label for="login-role">Demo role<select id="login-role" name="role"><option value="buyer">Buyer</option><option value="seller">Seller</option><option value="creator">Creator</option></select><small class="field-help">Choose which fictional dashboard to open.</small></label>` : `<label for="confirm-password">Confirm password<div class="password-field"><input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" data-password-toggle aria-controls="confirm-password" aria-label="Show password">Show</button></div><small class="field-error" data-error-for="confirmPassword"></small></label><fieldset class="role-fieldset"><legend>Choose a demo role</legend><div class="role-options">${roleOptions}</div><small class="field-error" data-error-for="role"></small></fieldset>`;
-  return `<section class="section auth-page"><div class="auth-layout"><div class="auth-intro"><p class="eyebrow">${isLogin ? 'Demo sign in' : 'Join the demo'}</p><h1 class="section-title">${isLogin ? 'Return to your Zuna space.' : 'Choose the role you want to explore.'}</h1><p>${isLogin ? 'This is a frontend-only session. Use a fictional email and any password with at least eight characters; nothing is stored as an identity credential.' : 'Create an in-memory demo session as a buyer, seller or creator. Refreshing the page clears it.'}</p>${demoNote('Frontend demonstration only · backend authentication and authorization are required later')}</div><form class="auth-form form-panel" data-form="${isLogin ? 'login' : 'register'}" novalidate><div class="form-heading"><p class="eyebrow">${isLogin ? 'Welcome back' : 'New demo session'}</p><h2>${isLogin ? 'Sign in to continue' : 'Create your demo profile'}</h2></div>${flash ? `<div class="form-message success" role="status">${escapeHtml(flash)}</div>` : ''}${!isLogin ? '<label for="register-name">Name<input id="register-name" name="name" type="text" autocomplete="name" required><small class="field-error" data-error-for="name"></small></label>' : ''}<label for="auth-email">Email address<input id="auth-email" name="email" type="email" autocomplete="email" placeholder="you@example.test" required><small class="field-error" data-error-for="email"></small></label><label for="auth-password">Password<div class="password-field"><input id="auth-password" name="password" type="password" autocomplete="${isLogin ? 'current-password' : 'new-password'}" minlength="8" required><button class="password-toggle" type="button" data-password-toggle aria-controls="auth-password" aria-label="Show password">Show</button></div><small class="field-error" data-error-for="password"></small></label>${roleFields}<div class="form-actions"><button class="button button-dark" type="submit">${isLogin ? 'Open demo dashboard' : 'Create demo session'} <span aria-hidden="true">↗</span></button><a class="text-link" href="#/${isLogin ? 'register' : 'login'}">${isLogin ? 'Need a demo profile?' : 'Already have a demo session?'}</a></div><div class="form-message" data-form-message aria-live="polite"></div>${isLogin ? '<p class="field-help">Try any fictional email such as buyer@example.test, seller@example.test or creator@example.test.</p>' : '<p class="field-help">Passwords are validated in memory only and are never stored in the demo session.</p>'}</form></div></section>`;
+  const roleFields = isLogin ? `<label for="login-role">Account type<select id="login-role" name="role"><option value="buyer">Buyer</option><option value="seller">Seller</option><option value="creator">Creator</option></select><small class="field-help">Choose the role registered to your account.</small></label>` : `<label for="confirm-password">Confirm password<div class="password-field"><input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" data-password-toggle aria-controls="confirm-password" aria-label="Show password">Show</button></div><small class="field-error" data-error-for="confirmPassword"></small></label><fieldset class="role-fieldset"><legend>Choose an account type</legend><div class="role-options">${roleOptions}</div><small class="field-error" data-error-for="role"></small></fieldset>`;
+  return `<section class="section auth-page"><div class="auth-layout"><div class="auth-intro"><p class="eyebrow">${isLogin ? 'Sign in' : 'Create an account'}</p><h1 class="section-title">${isLogin ? 'Return to your Zuna space.' : 'Choose the role you want to explore.'}</h1><p>${isLogin ? 'Sign in with the email and password registered to your account.' : 'Create a buyer, seller or creator account. Your password is securely hashed by the server.'}</p></div><form class="auth-form form-panel" data-form="${isLogin ? 'login' : 'register'}" novalidate><div class="form-heading"><p class="eyebrow">${isLogin ? 'Welcome back' : 'New account'}</p><h2>${isLogin ? 'Sign in to continue' : 'Create your profile'}</h2></div>${flash ? `<div class="form-message success" role="status">${escapeHtml(flash)}</div>` : ''}${!isLogin ? '<label for="register-name">Name<input id="register-name" name="name" type="text" autocomplete="name" required><small class="field-error" data-error-for="name"></small></label>' : ''}<label for="auth-email">Email address<input id="auth-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required><small class="field-error" data-error-for="email"></small></label><label for="auth-password">Password<div class="password-field"><input id="auth-password" name="password" type="password" autocomplete="${isLogin ? 'current-password' : 'new-password'}" minlength="8" required><button class="password-toggle" type="button" data-password-toggle aria-controls="auth-password" aria-label="Show password">Show</button></div><small class="field-error" data-error-for="password"></small></label>${roleFields}<div class="form-actions"><button class="button button-dark" type="submit">${isLogin ? 'Sign in' : 'Create account'} <span aria-hidden="true">↗</span></button><a class="text-link" href="#/${isLogin ? 'register' : 'login'}">${isLogin ? 'Need an account?' : 'Already have an account?'}</a></div><div class="form-message" data-form-message aria-live="polite"></div>${isLogin ? '' : '<p class="field-help">Use at least eight characters for your password.</p>'}</form></div></section>`;
 }
 function renderAccessGate(requiredRole, path) {
   const user = currentUser();
-  if (!user) return `<section class="section access-page"><div class="access-card"><p class="eyebrow">Demo route guard</p><h1 class="section-title">Sign in to explore this space.</h1><p>This frontend-only protected-route demonstration needs a demo session before showing the ${escapeHtml(roleLabel(requiredRole).toLowerCase())} experience.</p><div class="hero-actions"><a class="button button-dark" href="#/login">Open demo sign in</a><a class="button" href="#/register">Create a profile</a></div>${demoNote()}</div></section>`;
-  if (user.role !== requiredRole) return `<section class="section access-page"><div class="access-card"><p class="eyebrow">Role mismatch</p><h1 class="section-title">This demo space is for ${escapeHtml(roleLabel(requiredRole).toLowerCase())}s.</h1><p>You are currently exploring the ${escapeHtml(roleLabel(user.role).toLowerCase())} demo session. Switch by resetting the in-memory session or return to your current dashboard.</p><div class="hero-actions"><button class="button button-dark" type="button" data-reset-session>Reset demo session</button><a class="button" href="#/${escapeHtml(user.role)}">Go to ${escapeHtml(roleLabel(user.role))} dashboard</a></div>${demoNote('Role visibility is a frontend demonstration; backend authorization is still mandatory.')}</div></section>`;
+  if (!user) return `<section class="section access-page"><div class="access-card"><p class="eyebrow">Account required</p><h1 class="section-title">Sign in to explore this space.</h1><p>Sign in as a ${escapeHtml(roleLabel(requiredRole).toLowerCase())} to continue.</p><div class="hero-actions"><a class="button button-dark" href="#/login">Sign in</a><a class="button" href="#/register">Create an account</a></div></div></section>`;
+  if (user.role !== requiredRole) return `<section class="section access-page"><div class="access-card"><p class="eyebrow">Role mismatch</p><h1 class="section-title">This space is for ${escapeHtml(roleLabel(requiredRole).toLowerCase())}s.</h1><p>Your account is registered as a ${escapeHtml(roleLabel(user.role).toLowerCase())}. Sign out to use a different account.</p><div class="hero-actions"><button class="button button-dark" type="button" data-reset-session>Sign out</button><a class="button" href="#/${escapeHtml(user.role)}">Go to your dashboard</a></div></div></section>`;
   return null;
 }
-function dashboardHeader(eyebrow, title, copy) { return `<div class="dashboard-heading"><div><p class="eyebrow">${escapeHtml(eyebrow)}</p><h1 class="section-title">${escapeHtml(title)}</h1><p class="section-copy">${escapeHtml(copy)}</p></div>${demoNote()}</div>`; }
+function dashboardHeader(eyebrow, title, copy) { return `<div class="dashboard-heading"><div><p class="eyebrow">${escapeHtml(eyebrow)}</p><h1 class="section-title">${escapeHtml(title)}</h1><p class="section-copy">${escapeHtml(copy)}</p></div></div>`; }
 function statCard(label, value, detail) { return `<article class="stat-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></article>`; }
 function renderBuyer() {
   const gate = renderAccessGate('buyer', 'buyer'); if (gate) return gate;
-  const user = currentUser(); const saved = getProducts().filter(product => state.wishlist.has(product.id));
-  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Buyer space · demo', `Good to see you, ${user.name}.`, 'A small overview of your fictional buying activity, ready for a future API-backed account.')}<div class="stats-grid">${statCard('Open offers','2','Illustrative pending offers')}${statCard('Orders','3','Sample order history')}${statCard('Saved pieces',String(saved.length),'Current browser session only')}</div><div class="dashboard-columns"><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Negotiation preview</p><h2>Current offers</h2></div><span class="status-pill is-pending">Demo</span></div><ul class="activity-list"><li><div><strong>Rekhta Table Lamp</strong><span>Seller response pending · expires in 2 days</span></div><b>${formatPrice(2800)}</b></li><li><div><strong>Gulnaar Studs</strong><span>Seller countered · review in Phase 4</span></div><b>${formatPrice(1200)}</b></li></ul></section><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Order history</p><h2>Recent orders</h2></div><span class="status-pill is-neutral">Sample</span></div><ul class="activity-list"><li><div><strong>Neel Block Print</strong><span>Illustrative order · delivered</span></div><b>${formatPrice(1800)}</b></li><li><div><strong>Mitti Quiet Vessel</strong><span>Illustrative order · preparing</span></div><b>${formatPrice(950)}</b></li></ul></section></div><section class="dashboard-panel saved-panel"><div class="panel-heading"><div><p class="eyebrow">Your edit</p><h2>Saved products</h2></div><a class="text-link" href="#/marketplace">Browse more ↗</a></div>${saved.length ? `<div class="mini-product-grid">${saved.map(productCard).join('')}</div>` : `<div class="empty-inline"><p class="empty-mark">♡</p><h3>Your saved shelf is quiet.</h3><p>Save a piece in the marketplace to see it here during this demo session.</p><a class="button" href="#/marketplace">Explore pieces</a></div>`}</section></div></section>`;
+  const user = currentUser();
+  const saved = getProducts().filter(product => state.wishlist.has(product.id));
+  const activeOffers = state.offers.filter(offer => ['pending', 'countered', 'accepted'].includes(offer.status));
+  const pendingOrderOffer = activeOffers.find(offer => offer.status === 'accepted'
+    && !state.orders.some(order => order.offerId === offer.id)
+    && !isOfferPromptDismissed(offer.id));
+  const acceptedOfferPrompt = state.acceptedOfferPrompt || pendingOrderOffer || null;
+  state.acceptedOfferPrompt = acceptedOfferPrompt;
+  const offerRows = activeOffers.length ? activeOffers.map(offer => `<li><div><strong>${escapeHtml(offer.product.name)}</strong><span>${escapeHtml(offer.status)} · ${new Date(offer.expiresAt).toLocaleDateString()}</span></div><b>${formatPrice(offer.acceptedPrice || offer.counterPrice || offer.offeredPrice)}</b>${offer.status === 'countered' ? `<button class="button button-small" type="button" data-offer-action="accept" data-offer-id="${offer.id}">Accept counter</button>` : ''}${offer.status === 'accepted' ? `<a class="text-link" href="#/checkout/${offer.id}">Place order at ${formatPrice(offer.acceptedPrice || offer.counterPrice || offer.offeredPrice)}</a>` : ''}</li>`).join('') : '<li><div><strong>No offers yet</strong><span>Make an offer from a seller listing.</span></div></li>';
+  const orderPrompt = acceptedOfferPrompt
+    ? renderAcceptedOfferPrompt(acceptedOfferPrompt)
+    : '';
+  const offerRefreshMessage = `<p class="form-message error" data-offer-poll-error role="alert" ${state.offerPollError ? '' : 'hidden'}>${state.offerPollError ? `Could not check for accepted offers: ${escapeHtml(state.offerPollError)}` : ''}</p>`;
+  const orderRows = state.orders.length ? state.orders.map(order => `<li><div><strong>${escapeHtml(order.product.name)}</strong><span>Order · ${escapeHtml(order.paymentMethod === 'cod' ? 'Cash on delivery' : order.paymentMethod === 'razorpay' ? 'Razorpay' : 'Accepted offer')} · ${escapeHtml(order.paymentStatus)}${order.size ? ` · Size ${escapeHtml(order.size)}` : ''}${order.expectedDelivery ? ` · Expected ${escapeHtml(formatDeliveryDate(order.expectedDelivery))}, ${escapeHtml(order.expectedDelivery.window)}` : ''}</span></div><b>${formatPrice(order.amount)}</b></li>`).join('') : '<li><div><strong>No orders yet</strong><span>Your purchases will appear here after checkout.</span></div></li>';
+  const dashboard = `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Buyer space', `Good to see you, ${user.name}.`, 'Your saved products, negotiations and orders in one place.')}${offerRefreshMessage}<div class="stats-grid">${statCard('Active offers',String(activeOffers.length),'Pending, countered or accepted')}${statCard('Orders',String(state.orders.length),'Your checkout history')}${statCard('Saved pieces',String(saved.length),'Synced to your account')}</div><div class="dashboard-columns"><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Negotiations</p><h2>Your offers</h2></div></div><ul class="activity-list">${offerRows}</ul></section><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Order history</p><h2>Recent orders</h2></div></div><ul class="activity-list">${orderRows}</ul></section></div><section class="dashboard-panel saved-panel"><div class="panel-heading"><div><p class="eyebrow">Your edit</p><h2>Saved products</h2></div><a class="text-link" href="#/marketplace">Browse more ↗</a></div>${saved.length ? `<div class="mini-product-grid">${saved.map(productCard).join('')}</div>` : `<div class="empty-inline"><p class="empty-mark">♡</p><h3>Your saved shelf is quiet.</h3><p>Save a piece in the marketplace to see it here.</p><a class="button" href="#/marketplace">Explore pieces</a></div>`}</section></div></section>`;
+  return `${dashboard}${orderPrompt}`;
+}
+function renderAcceptedOfferPrompt(offer) {
+  const amount = offer.acceptedPrice || offer.counterPrice || offer.offeredPrice;
+  return `<div class="accepted-offer-backdrop"><section class="accepted-offer-dialog" role="dialog" aria-modal="true" aria-labelledby="accepted-offer-title" tabindex="-1"><button class="accepted-offer-dialog-close" type="button" data-dismiss-offer-order aria-label="Close order prompt">×</button><p class="eyebrow">Negotiated price accepted</p><h2 id="accepted-offer-title">Ready to place your order?</h2><p>${escapeHtml(offer.product.name)} is available at the accepted price.</p><div class="accepted-offer-price"><span>Negotiated price</span><strong>${formatPrice(amount)}</strong></div><button class="button button-dark" type="button" data-place-negotiated-order="${offer.id}">Place order at ${formatPrice(amount)} <span aria-hidden="true">↗</span></button><button class="accepted-offer-later" type="button" data-dismiss-offer-order>Save for later</button><p class="field-help">We'll add this product to Saved products. You can still place the order at this price from Your offers.</p><div class="form-message" data-form-message aria-live="polite"></div></section></div>`;
 }
 function ageTone(age) { return age >= 60 ? 'is-alert' : age >= 31 ? 'is-watch' : 'is-fresh'; }
 function renderSeller() {
   const gate = renderAccessGate('seller', 'seller'); if (gate) return gate;
-  const products = getProducts(); const pending = 3; const lowStock = products.filter(product => product.stockQty < 6).length;
-  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Seller space · demo','Make room for the work behind the listing.','Manage fictional listings, understand sample stock age and prepare for future offer workflows.')}<div class="stats-grid">${statCard('Active listings',String(products.length),'Includes sample catalogue')}${statCard('Pending offers',String(pending),'Illustrative only')}${statCard('Low-stock flags',String(lowStock),'Based on demo quantities')}</div><div class="dashboard-columns"><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Listing health</p><h2>Inventory ageing</h2></div><a class="button button-small" href="#/seller/products">Manage products</a></div><div class="age-list">${products.slice(0, 4).map(product => `<div class="age-row"><div><strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(product.stockQty)} sample units · ${escapeHtml(product.maker)}</span></div><div class="age-meter"><span class="${ageTone(product.age)}" style="width:${Math.min(product.age,90) + 10}%"></span></div><b>${escapeHtml(product.age)} days</b></div>`).join('')}</div></section><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Negotiation queue</p><h2>Pending offers</h2></div><span class="status-pill is-pending">Phase 4</span></div><ul class="activity-list"><li><div><strong>Rekhta Table Lamp</strong><span>Buyer demo · awaiting response</span></div><b>${formatPrice(2800)}</b></li><li><div><strong>Gulnaar Studs</strong><span>Buyer demo · awaiting response</span></div><b>${formatPrice(1200)}</b></li><li><div><strong>Mitti Quiet Vessel</strong><span>Buyer demo · expired preview</span></div><b>${formatPrice(800)}</b></li></ul></section></div></div></section>`;
+  const products = state.sellerProducts;
+  const actionableOffers = state.offers.filter(offer => ['pending', 'countered'].includes(offer.status));
+  const offerRows = actionableOffers.length ? actionableOffers.map(offer => `<li><div><strong>${escapeHtml(offer.product.name)}</strong><span>${offer.product.isSample ? 'Sample catalog offer' : 'Buyer offer'} · ${escapeHtml(offer.status)}</span></div><b>${formatPrice(offer.offeredPrice)}</b></li>`).join('') : '<li><div><strong>No pending offers</strong><span>New buyer offers will appear here.</span></div></li>';
+  const lowStock = products.filter(product => product.stockQty < 6).length;
+  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Seller space','Make room for the work behind the listing.','Manage inventory and respond to offers on your listings or sample catalog items.')}<div class="stats-grid">${statCard('Active listings',String(products.length),'Products owned by your account')}${statCard('Pending offers',String(actionableOffers.length),'Awaiting your response')}${statCard('Low-stock flags',String(lowStock),'Based on your quantities')}</div><div class="dashboard-columns"><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Listing health</p><h2>Inventory ageing</h2></div><a class="button button-small" href="#/seller/products">Manage products</a></div><div class="age-list">${products.slice(0, 4).map(product => `<div class="age-row"><div><strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(product.stockQty)} units · ${escapeHtml(product.maker)}</span></div><div class="age-meter"><span class="${ageTone(product.age)}" style="width:${Math.min(product.age,90) + 10}%"></span></div><b>${escapeHtml(product.age)} days</b></div>`).join('') || '<p class="empty-inline">You have not listed products yet.</p>'}</div></section><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Negotiation queue</p><h2>Pending offers</h2></div></div><ul class="activity-list">${offerRows}</ul><a class="text-link" href="#/seller/offers">Open offer workspace ↗</a></section></div><p><a class="text-link" href="#/seller/pricing">Open explainable pricing tool ↗</a></p></div></section>`;
 }
 function renderSellerProducts() {
   const flash = consumeFlash();
   const gate = renderAccessGate('seller', 'seller/products'); if (gate) return gate;
-  const products = getProducts();
-  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Seller tools · demo','Your product table.','Add and edit fictional listing data in this browser session. Refreshing the page resets it.')}${flash ? `<div class="form-message success" role="status">${escapeHtml(flash)}</div>` : ''}<div class="toolbar-row"><a class="button button-dark" href="#/seller/products/new">Add a product <span aria-hidden="true">↗</span></a><a class="text-link" href="#/seller">Back to seller dashboard</a></div><section class="dashboard-panel table-panel"><div class="table-wrap"><table><caption class="sr-only">Demo seller products</caption><thead><tr><th scope="col">Product</th><th scope="col">Price</th><th scope="col">Stock</th><th scope="col">Age</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${products.map(product => `<tr><td><strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(product.category)} · sample listing</span></td><td>${formatPrice(product.price)}</td><td>${escapeHtml(product.stockQty)}</td><td><span class="age-chip ${ageTone(product.age)}">${escapeHtml(product.age)}d</span></td><td>${product.available ? 'Available' : 'Unavailable'}</td><td><a class="text-link" href="#/seller/products/${encodeURIComponent(product.id)}/edit">Edit</a></td></tr>`).join('')}</tbody></table></div></section></div></section>`;
+  const products = state.sellerProducts;
+  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Seller tools','Your product table.','Manage the listings owned by your account.')}${flash ? `<div class="form-message success" role="status">${escapeHtml(flash)}</div>` : ''}<div class="toolbar-row"><a class="button button-dark" href="#/seller/products/new">Add a product <span aria-hidden="true">↗</span></a><a class="text-link" href="#/seller">Back to seller dashboard</a></div><section class="dashboard-panel table-panel"><div class="table-wrap"><table><caption class="sr-only">Your products</caption><thead><tr><th scope="col">Product</th><th scope="col">Price</th><th scope="col">Stock</th><th scope="col">Age</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${products.map(product => `<tr><td><strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(product.category)}</span></td><td>${formatPrice(product.price)}</td><td>${escapeHtml(product.stockQty)}</td><td><span class="age-chip ${ageTone(product.age)}">${escapeHtml(product.age)}d</span></td><td>${hasStock(product) ? 'In stock' : 'Out of stock'}</td><td><a class="text-link" href="#/seller/products/${encodeURIComponent(product.id)}/edit">Edit</a></td></tr>`).join('') || '<tr><td colspan="6">No products yet. Add your first listing to get started.</td></tr>'}</tbody></table></div></section></div></section>`;
 }
 function productForm(product = null) {
   const value = key => escapeHtml(product?.[key] ?? '');
-  return `<form class="product-form form-panel" data-form="product" data-product-id="${product ? escapeHtml(product.id) : ''}" novalidate><div class="form-grid"><label for="product-name">Product name<input id="product-name" name="name" type="text" value="${value('name')}" required><small class="field-error" data-error-for="name"></small></label><label for="product-category">Category<select id="product-category" name="category">${CATEGORIES.map(category => `<option value="${escapeHtml(category)}" ${product?.category === category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select></label><label for="product-price">Listing price (₹)<input id="product-price" name="price" type="number" min="1" step="1" value="${value('price')}" required><small class="field-error" data-error-for="price"></small></label><label for="product-cost">Estimated cost (₹)<input id="product-cost" name="cost" type="number" min="0" step="1" value="${value('cost')}" required><small class="field-error" data-error-for="cost"></small></label><label for="product-stock">Stock quantity<input id="product-stock" name="stockQty" type="number" min="0" step="1" value="${value('stockQty') || 0}" required><small class="field-error" data-error-for="stockQty"></small></label><label for="product-age">Inventory age (days)<input id="product-age" name="age" type="number" min="0" step="1" value="${value('age') || 0}" required><small class="field-error" data-error-for="age"></small></label><label for="product-image">Sample image<select id="product-image" name="image">${[['./assets/images/jewellery.webp','Jewellery'],['./assets/images/lamp.webp','Lamp'],['./assets/images/textile.webp','Textile'],['./assets/images/hero-craft.webp','Ceramic']].map(([image,label]) => `<option value="${image}" ${product?.image === image ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label for="product-offers">Negotiation setting<select id="product-offers" name="offers"><option value="true" ${product?.offers !== false ? 'selected' : ''}>Open to offers</option><option value="false" ${product?.offers === false ? 'selected' : ''}>Fixed sample price</option></select></label><label class="form-span" for="product-description">Short description<textarea id="product-description" name="description" rows="4" required>${value('description')}</textarea><small class="field-error" data-error-for="description"></small></label></div><div class="form-actions"><button class="button button-dark" type="submit">${product ? 'Save product changes' : 'Add demo product'} <span aria-hidden="true">↗</span></button><a class="button" href="#/seller/products">Cancel</a></div><div class="form-message" data-form-message aria-live="polite"></div><p class="field-help">This updates the in-memory demo catalogue only. It is cleared on refresh or reset.</p></form>`;
+  return `<form class="product-form form-panel" data-form="product" data-product-id="${product ? escapeHtml(product.id) : ''}" novalidate><div class="form-grid"><label for="product-name">Product name<input id="product-name" name="name" type="text" value="${value('name')}" required><small class="field-error" data-error-for="name"></small></label><label for="product-category">Category<select id="product-category" name="category">${CATEGORIES.map(category => `<option value="${escapeHtml(category)}" ${product?.category === category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select></label><label for="product-price">Listing price (₹)<input id="product-price" name="price" type="number" min="1" step="1" value="${value('price')}" required><small class="field-error" data-error-for="price"></small></label><label for="product-cost">Estimated cost (₹)<input id="product-cost" name="cost" type="number" min="0" step="1" value="${value('cost')}" required><small class="field-error" data-error-for="cost"></small></label><label for="product-stock">Stock quantity<input id="product-stock" name="stockQty" type="number" min="0" step="1" value="${value('stockQty') || 0}" required><small class="field-error" data-error-for="stockQty"></small></label><label for="product-age">Inventory age (days)<input id="product-age" name="age" type="number" min="0" step="1" value="${value('age') || 0}" required><small class="field-error" data-error-for="age"></small></label><label for="product-image">Product image<select id="product-image" name="image">${[['./assets/images/jewellery.webp','Jewellery'],['./assets/images/lamp.webp','Lamp'],['./assets/images/textile.webp','Textile'],['./assets/images/hero-craft.webp','Ceramic']].map(([image,label]) => `<option value="${image}" ${product?.image === image ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label for="product-offers">Negotiation setting<select id="product-offers" name="offers"><option value="true" ${product?.offers !== false ? 'selected' : ''}>Open to offers</option><option value="false" ${product?.offers === false ? 'selected' : ''}>Fixed price</option></select></label><label class="form-span" for="product-description">Short description<textarea id="product-description" name="description" rows="4" required>${value('description')}</textarea><small class="field-error" data-error-for="description"></small></label></div><div class="form-actions"><button class="button button-dark" type="submit">${product ? 'Save product changes' : 'Add product'} <span aria-hidden="true">↗</span></button><a class="button" href="#/seller/products">Cancel</a></div><div class="form-message" data-form-message aria-live="polite"></div></form>`;
 }
 function renderProductForm(id = '') {
   const gate = renderAccessGate('seller', id ? `seller/products/${id}/edit` : 'seller/products/new'); if (gate) return gate;
   const product = id ? findProduct(id) : null;
   if (id && !product) return renderPlaceholder('seller', 'That demo product no longer exists in this session.');
-  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Seller tools · demo', product ? 'Edit a sample listing.' : 'Add a new sample listing.', product ? 'Update the fictional listing details below. The product remains local to this browser session.' : 'Create a fictional listing to test the seller flow. No listing is sent to a server.')} ${productForm(product)}</div></section>`;
+  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Seller tools', product ? 'Edit your listing.' : 'Add a product.', product ? 'Update the listing details below.' : 'Create a listing for your business.')} ${productForm(product)}</div></section>`;
 }
 function renderCreator() {
   const gate = renderAccessGate('creator', 'creator'); if (gate) return gate;
   const user = currentUser();
-  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Creator space · demo', `Your creative point of view, ${user.name}.`, 'A lightweight collaboration overview for a future social-commerce module.')}<div class="stats-grid">${statCard('Profile status','Ready','Fictional creator profile')}${statCard('Open opportunities','4','Illustrative seller requests')}${statCard('Referral clicks','28','Sample metric · not tracked')}</div><div class="dashboard-columns"><section class="dashboard-panel creator-profile"><p class="eyebrow">Profile snapshot</p><div class="creator-avatar" aria-hidden="true">${escapeHtml(user.name.slice(0, 1).toUpperCase())}</div><h2>${escapeHtml(user.name)}</h2><p>Home, craft and slow-living storyteller</p><span class="status-pill is-neutral">@${escapeHtml(slugify(user.name))}</span></section><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Collaboration summary</p><h2>Opportunities to review</h2></div><a class="button button-small" href="#/collaborations">View all</a></div><ul class="activity-list"><li><div><strong>Fictional textile studio</strong><span>Share a block-print edit · sample commission</span></div><b>Open</b></li><li><div><strong>Demo woodcraft maker</strong><span>Tell the story of a carved lamp · sample request</span></div><b>Open</b></li><li><div><strong>Terracotta collection</strong><span>Referral link preview · awaiting future backend</span></div><b>Draft</b></li></ul></section></div>${demoNote('Creator links and metrics are presentation-only in Phase 3; no social platform is connected.')}</div></section>`;
+  const clicks = state.referrals.reduce((total, referral) => total + referral.clicks, 0);
+  const rows = state.opportunities.slice(0, 4).map(opportunity => `<li><div><strong>${escapeHtml(opportunity.business)}</strong><span>${escapeHtml(opportunity.brief)}</span></div><b>${escapeHtml(opportunity.request?.status || opportunity.status)}</b></li>`).join('') || '<li><div><strong>No open opportunities yet</strong><span>Check back when a seller publishes one.</span></div></li>';
+  const referralRows = state.referrals.map(referral => `<li><div><strong>Referral link</strong><span>${escapeHtml(referral.clicks)} visits · ${escapeHtml(referral.conversions)} conversions</span></div><button class="text-link" type="button" data-copy-link="${escapeHtml(referral.link)}">Copy link</button></li>`).join('');
+  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Creator space', `Your creative point of view, ${user.name}.`, 'Browse seller opportunities and keep track of approved referral links.')}<div class="stats-grid">${statCard('Profile status','Ready','Account verified')}${statCard('Open opportunities',String(state.opportunities.filter(item => item.status === 'open').length),'Available to request')}${statCard('Referral visits',String(clicks),'Recorded by the API')}</div><div class="dashboard-columns"><section class="dashboard-panel creator-profile"><p class="eyebrow">Profile snapshot</p><div class="creator-avatar" aria-hidden="true">${escapeHtml(user.name.slice(0, 1).toUpperCase())}</div><h2>${escapeHtml(user.name)}</h2><p>Creator account</p><span class="status-pill is-neutral">${escapeHtml(user.email)}</span></section><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Collaboration summary</p><h2>Opportunities</h2></div><a class="button button-small" href="#/collaborations">View all</a></div><ul class="activity-list">${rows}</ul></section></div><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Approved referrals</p><h2>Your links</h2></div></div><ul class="activity-list">${referralRows || '<li><div><strong>No referral links yet</strong><span>Approved collaboration requests create a link here.</span></div></li>'}</ul></section></div></section>`;
 }
 
 
 function collaborationCard(opportunity) {
-  const product = findProduct(opportunity.productId);
-  const request = state.collaborationRequests[opportunity.id];
+  const product = opportunity.product || findProduct(opportunity.productId);
+  const request = state.collaborationRequests[opportunity.id] || opportunity.request;
   const sellerMode = isRole('seller');
-  const actions = sellerMode ? `<button class="button button-small" type="button" data-collab-accept="${escapeHtml(opportunity.id)}">${request?.status === 'Accepted' ? 'Accepted · referral issued' : 'Accept creator requests'}</button>` : request?.status === 'Accepted' ? `<span class="form-message success" role="status">Accepted · referral link ready</span><button class="button button-small" type="button" data-referral-copy="${escapeHtml(opportunity.id)}">Copy referral link</button>` : request?.status === 'Pending' ? '<span class="status-pill is-pending">Request pending</span>' : `<button class="button button-dark button-small" type="button" data-collab-request="${escapeHtml(opportunity.id)}">Request to collaborate</button>`;
-  const statusClass = request?.status === 'Pending' ? 'is-pending' : request?.status === 'Accepted' ? 'is-success' : 'is-neutral';
-  return `<article class="collaboration-card motion-item"><div class="collaboration-card-image"><img src="${escapeHtml(product?.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product?.name || 'Demo product')} sample visual" loading="lazy"><span>${escapeHtml(opportunity.type)}</span></div><div class="collaboration-card-copy"><div class="eyebrow-row"><p class="eyebrow">${escapeHtml(opportunity.business)}</p><span class="status-pill ${statusClass}">${escapeHtml(request?.status || opportunity.status)}</span></div><h2>${escapeHtml(product?.name || 'Demo product')}</h2><p>${escapeHtml(opportunity.brief)}</p><small>${escapeHtml(opportunity.terms)}</small><div class="collaboration-card-actions">${actions}</div></div></article>`;
+  const referral = state.referrals.find(item => item.opportunityId === opportunity.id);
+  let actions;
+  if (sellerMode && opportunity.sellerId === currentUser().id) {
+    actions = (opportunity.requests || []).map(item => item.status === 'pending'
+      ? `<div><span>${escapeHtml(item.creator.name)} · ${escapeHtml(item.creator.email)}</span><button class="button button-small" type="button" data-collab-review="${item.id}" data-collab-opportunity="${escapeHtml(opportunity.id)}" data-collab-action="accept">Accept</button><button class="button button-small" type="button" data-collab-review="${item.id}" data-collab-opportunity="${escapeHtml(opportunity.id)}" data-collab-action="reject">Decline</button></div>`
+      : `<span class="status-pill ${item.status === 'accepted' ? 'is-success' : 'is-neutral'}">${escapeHtml(item.creator.name)} · ${escapeHtml(item.status)}</span>`).join('') || '<span>No creator requests yet.</span>';
+  } else if (sellerMode) {
+    actions = '<span>Published by another business.</span>';
+  } else if (request?.status === 'accepted' && referral) {
+    actions = `<span class="form-message success" role="status">Accepted · referral link ready</span><button class="button button-small" type="button" data-copy-link="${escapeHtml(referral.link)}">Copy referral link</button>`;
+  } else if (request?.status) {
+    actions = `<span class="status-pill ${request.status === 'pending' ? 'is-pending' : 'is-neutral'}">Request ${escapeHtml(request.status)}</span>`;
+  } else if (opportunity.status === 'open') {
+    actions = `<button class="button button-dark button-small" type="button" data-collab-request="${escapeHtml(opportunity.id)}">Request to collaborate</button>`;
+  } else {
+    actions = `<span class="status-pill is-neutral">${escapeHtml(opportunity.status)}</span>`;
+  }
+  const statusClass = request?.status === 'pending' ? 'is-pending' : request?.status === 'accepted' ? 'is-success' : 'is-neutral';
+  return `<article class="collaboration-card motion-item"><div class="collaboration-card-image"><img src="${escapeHtml(product?.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product?.name || 'Product')} visual" loading="lazy"><span>${escapeHtml(opportunity.type)}</span></div><div class="collaboration-card-copy"><div class="eyebrow-row"><p class="eyebrow">${escapeHtml(opportunity.business)}</p><span class="status-pill ${statusClass}">${escapeHtml(request?.status || opportunity.status)}</span></div><h2>${escapeHtml(product?.name || 'Product')}</h2><p>${escapeHtml(opportunity.brief)}</p><small>${escapeHtml(opportunity.terms)}</small><div class="collaboration-card-actions">${actions}</div></div></article>`;
 }
 function renderCollaborations() {
   const user = currentUser();
   if (!user) return renderAccessGate('creator', 'collaborations');
   if (!['creator', 'seller'].includes(user.role)) return renderAccessGate('creator', 'collaborations');
-  return `<section class="section collaborations-page"><div class="section-inner"><div class="dashboard-heading"><div><p class="eyebrow">Collaboration marketplace · demo mode</p><h1 class="section-title">Good products travel through good stories.</h1><p class="section-copy">Browse fictional opportunities, read the brief and request a collaboration. Approval and referral links are backend responsibilities in live mode.</p></div>${demoNote('No social account is connected · no follower or commission claims')}</div><div class="collaboration-toolbar"><label class="search-control"><span class="sr-only">Filter opportunities</span><input type="search" placeholder="Filter by product, business or brief" data-collab-filter></label><span class="demo-note">${COLLABORATION_OPPORTUNITIES.length} sample opportunities</span></div><div class="collaboration-grid">${COLLABORATION_OPPORTUNITIES.map(collaborationCard).join('')}</div></div></section>`;
+  const form = user.role === 'seller' ? state.sellerProducts.length
+    ? `<form class="form-panel" data-form="collaboration" novalidate><p class="eyebrow">Create an opportunity</p><label for="collab-product">Your product<select id="collab-product" name="product_id" required>${state.sellerProducts.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`).join('')}</select></label><label for="collab-type">Collaboration type<input id="collab-type" name="collaboration_type" required maxlength="100"></label><label for="collab-brief">Brief<textarea id="collab-brief" name="brief" minlength="10" maxlength="3000" required></textarea></label><label for="collab-terms">Terms<input id="collab-terms" name="terms" required maxlength="1000"></label><button class="button button-dark" type="submit">Publish opportunity</button><div class="form-message" data-form-message aria-live="polite"></div></form>`
+    : '<p class="field-help">Add a product listing before publishing a collaboration opportunity.</p>' : '';
+  return `<section class="section collaborations-page"><div class="section-inner"><div class="dashboard-heading"><div><p class="eyebrow">Collaboration marketplace</p><h1 class="section-title">Good products travel through good stories.</h1><p class="section-copy">${user.role === 'seller' ? 'Publish opportunities for your products and review creator requests.' : 'Browse seller opportunities, request a collaboration and track approved referral links.'}</p></div></div>${form}<div class="collaboration-toolbar"><label class="search-control"><span class="sr-only">Filter opportunities</span><input type="search" placeholder="Filter by product, business or brief" data-collab-filter></label><span class="demo-note">${state.opportunities.length} opportunities</span></div><div class="collaboration-grid">${state.opportunities.map(collaborationCard).join('') || '<div class="empty-state"><h2>No opportunities yet.</h2><p>New opportunities will appear here when sellers publish them.</p></div>'}</div></div></section>`;
 }
 function renderSellerOffers() {
   const gate = renderAccessGate('seller', 'seller/offers'); if (gate) return gate;
-  const product = findProduct(state.offer.productId);
-  return `<section class="section dashboard-page offers-page"><div class="section-inner">${dashboardHeader('Seller tools · demo','Negotiation, with context.','Review the sample offer, its inventory age and the actions that would be sent to the backend in live mode.')}<div class="offer-workspace"><section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">Incoming offer · ${escapeHtml(state.offer.status)}</p><h2>${escapeHtml(product?.name || 'Sample product')}</h2></div><span class="status-pill is-pending">${escapeHtml(state.offer.expiresAt)}</span></div><div class="offer-summary"><strong>${formatPrice(state.offer.offeredPrice)}</strong><span>Buyer proposal · seller minimum stays private</span></div><div class="offer-actions"><button class="button button-dark" type="button" data-offer-action="accept">Accept counter at ${formatPrice(state.offer.counterPrice)}</button><button class="button" type="button" data-offer-action="reject">Reject</button><button class="button" type="button" data-offer-action="counter">Send a different counter</button>${state.offer.status === 'Accepted' ? '<a class="button button-light" href="#/checkout">Review checkout boundary ↗</a>' : ''}</div>${demoNote('Demo action only · a real backend must enforce permissions, floor price and expiry')}</section><section class="dashboard-panel offer-timeline-panel"><p class="eyebrow">History</p><ol class="offer-history">${state.offer.history.map(item => `<li><span class="history-dot" aria-hidden="true"></span><div><strong>${escapeHtml(item.actor)} · ${escapeHtml(item.status)}</strong><small>${escapeHtml(item.time)}</small></div><b>${formatPrice(item.amount)}</b></li>`).join('')}</ol></section></div></div></section>`;
+  const offers = state.offers;
+  const cards = offers.map(offer => {
+    const active = ['pending', 'countered'].includes(offer.status);
+    const amount = offer.counterPrice || offer.offeredPrice;
+    const actions = active
+      ? `<button class="button button-dark" type="button" data-offer-action="accept" data-offer-id="${offer.id}">Accept at ${formatPrice(amount)}</button><button class="button" type="button" data-offer-action="reject" data-offer-id="${offer.id}">Reject</button><form data-form="counter" data-offer-id="${offer.id}"><label>Counter (₹)<input name="amount" type="number" min="1" max="${offer.product.price}" value="${Math.min(offer.product.price, amount + 100)}" required></label><button class="button" type="submit">Send counter</button><div class="form-message" data-form-message aria-live="polite"></div></form>`
+      : offer.status === 'accepted' ? '<span class="status-pill is-success">Accepted · awaiting buyer checkout</span>' : `<span class="status-pill is-neutral">${escapeHtml(offer.status)}</span>`;
+    return `<section class="dashboard-panel"><div class="panel-heading"><div><p class="eyebrow">${offer.product.isSample ? 'Sample catalog offer' : 'Offer'} · ${escapeHtml(offer.status)}</p><h2>${escapeHtml(offer.product.name)}</h2></div><span class="status-pill ${active ? 'is-pending' : 'is-neutral'}">${new Date(offer.expiresAt).toLocaleDateString()}</span></div><div class="offer-summary"><strong>${formatPrice(offer.offeredPrice)}</strong><span>Buyer proposal · listing price ${formatPrice(offer.product.price)}</span></div><div class="offer-actions">${actions}</div><ol class="offer-history">${offer.history.map(item => `<li><span class="history-dot" aria-hidden="true"></span><div><strong>${escapeHtml(item.actor)} · ${escapeHtml(item.status)}</strong><small>${new Date(item.time).toLocaleString()}</small></div><b>${formatPrice(item.amount)}</b></li>`).join('')}</ol></section>`;
+  }).join('');
+  return `<section class="section dashboard-page offers-page"><div class="section-inner">${dashboardHeader('Seller tools','Negotiation, with context.','Review offers on your listings and sample catalog items.')}<div class="offer-workspace">${cards || '<section class="dashboard-panel empty-inline"><h2>No offers yet.</h2><p>Offers from buyers will appear here.</p></section>'}</div></div></section>`;
+}
+function renderSellerPricing() {
+  const gate = renderAccessGate('seller', 'seller/pricing');
+  if (gate) return gate;
+  const suggestion = state.pricingSuggestion;
+  return `<section class="section dashboard-page"><div class="section-inner">${dashboardHeader('Seller tools','A price with context.','Estimate a listing price from your cost, target margin, inventory age and demand assumptions.')}<form class="form-panel" data-form="pricing"><div class="form-grid"><label for="pricing-cost">Unit cost (₹)<input id="pricing-cost" name="unit_cost" type="number" min="1" value="${state.pricingInput.unit_cost}" required></label><label for="pricing-margin">Target margin (%)<input id="pricing-margin" name="target_margin_percent" type="number" min="1" max="75" step="0.5" value="${state.pricingInput.target_margin_percent}" required></label><label for="pricing-age">Inventory age (days)<input id="pricing-age" name="inventory_age_days" type="number" min="0" value="${state.pricingInput.inventory_age_days}" required></label><label for="pricing-demand">Demand index (0–100)<input id="pricing-demand" name="demand_index" type="number" min="0" max="100" value="${state.pricingInput.demand_index}" required></label></div><div class="form-actions"><button class="button button-dark" type="submit">Calculate suggestion</button></div><div class="form-message" data-form-message aria-live="polite"></div></form>${suggestion ? `<section class="dashboard-panel pricing-preview"><p class="eyebrow">Explainable estimate · not an AI prediction</p><h2>${formatPrice(suggestion.suggestedPrice)}</h2><p>Base price ${formatPrice(suggestion.basePrice)} · adjusted ${escapeHtml(suggestion.adjustmentPercent)}% · estimated margin ${escapeHtml(suggestion.actualMarginPercent)}%</p><p>${escapeHtml(suggestion.explanation)}</p></section>` : ''}</div></section>`;
+}
+function renderPaymentMethodOptions() {
+  return `<fieldset class="role-fieldset"><legend>Payment method</legend><div class="role-options"><label class="role-option"><input type="radio" name="payment_method" value="razorpay" checked><span><strong>Online payment</strong><small>UPI · credit/debit cards · net banking · wallets</small></span></label><label class="role-option"><input type="radio" name="payment_method" value="cod"><span><strong>Cash on delivery</strong><small>Pay when your order arrives; this order stays unpaid until then.</small></span></label></div></fieldset>`;
+}
+function renderDeliveryFields(user) {
+  return `<label for="delivery-name">Recipient name<input id="delivery-name" name="delivery_name" type="text" autocomplete="name" value="${escapeHtml(user.name)}" required><small class="field-error" data-error-for="delivery_name"></small></label><label for="delivery-phone">Mobile number<input id="delivery-phone" name="delivery_phone" type="tel" autocomplete="tel" minlength="7" maxlength="30" required><small class="field-error" data-error-for="delivery_phone"></small></label><label for="delivery-address">Delivery address<textarea id="delivery-address" name="delivery_address" rows="3" minlength="8" maxlength="1000" autocomplete="street-address" required></textarea><small class="field-error" data-error-for="delivery_address"></small></label>`;
+}
+function renderSizeControl(product, options = {}) {
+  const sizes = productSizes(product);
+  const selectedSize = sizes.includes(options.selectedSize) ? options.selectedSize : state.selectedSizes[product.id];
+  const selected = sizes.includes(selectedSize) ? selectedSize : sizes[0];
+  const name = options.name || 'size';
+  return `<fieldset class="size-fieldset"><legend>Choose a size</legend><div class="size-options">${sizes.map(size => `<label class="size-option"><input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(size)}" ${selected === size ? 'checked' : ''} required ${options.trackSelection ? `data-product-size="${escapeHtml(product.id)}"` : ''}><span>${escapeHtml(size)}</span></label>`).join('')}</div><small class="field-help">Available sizes share the listed stock quantity.</small>${options.trackSelection ? '' : '<small class="field-error" data-error-for="size"></small>'}</fieldset>`;
 }
 function renderCheckout() {
-  const product = findProduct(state.offer.productId);
-  const accepted = state.offer.status === 'Accepted';
-  return `<section class="section checkout-page"><div class="section-inner"><div class="checkout-intro"><p class="eyebrow">Checkout · demo boundary</p><h1 class="section-title">A clear handoff, not a pretend payment.</h1><p class="section-copy">The payable amount below is illustrative demo state. In live mode, FastAPI must create the checkout session and return the authoritative amount, currency, expiry and Razorpay order details.</p></div><div class="checkout-layout"><section class="dashboard-panel checkout-review"><p class="eyebrow">Review</p><div class="checkout-product"><img src="${escapeHtml(product?.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product?.name || 'Sample product')} sample visual"><div><h2>${escapeHtml(product?.name || 'Sample product')}</h2><p>${escapeHtml(product?.seller || 'Demo seller')}</p><span class="status-pill ${accepted ? 'is-success' : 'is-pending'}">${accepted ? 'Accepted · demo-valid' : 'Waiting for accepted offer'}</span></div></div><div class="checkout-total"><span>Server-authoritative amount in live mode</span><strong>${formatPrice(accepted ? state.offer.counterPrice : state.offer.offeredPrice)}</strong></div>${accepted ? '<p class="field-help">Demo accepted amount only. No card details are collected and no payment is marked successful.</p>' : '<p class="form-message error" role="alert">Checkout is disabled until the relevant offer is accepted and remains valid.</p>'}</section><section class="dashboard-panel checkout-actions"><p class="eyebrow">Payment handoff</p><h2>${accepted ? 'Ready for a backend-created session.' : 'Offer acceptance required.'}</h2><p>Razorpay Test Mode belongs behind the API adapter. The browser cannot verify a signature or mark an order paid.</p>${accepted ? '<button class="button button-dark" type="button" data-demo-checkout>Start demo checkout handoff</button>' : '<a class="button button-dark" href="#/buyer">Review your offer</a>'}<a class="text-link" href="#/marketplace">Return to marketplace ↗</a>${demoNote('Demo mode · no payment, order or verification has occurred')}</section></div></div></section>`;
+  const gate = renderAccessGate('buyer', 'checkout');
+  if (gate) return gate;
+  const offer = state.offer;
+  if (!offer || offer.status !== 'accepted') return `<section class="section checkout-page"><div class="section-inner"><p class="eyebrow">Checkout</p><h1 class="section-title">An accepted offer is required.</h1><p>Choose an accepted offer from your buyer dashboard to continue.</p><a class="button button-dark" href="#/buyer">Review your offers</a></div></section>`;
+  const product = offer.product;
+  const amount = offer.acceptedPrice || offer.counterPrice || offer.offeredPrice;
+  if (!hasStock(product)) return `<section class="section checkout-page"><div class="section-inner"><p class="eyebrow">Checkout</p><h1 class="section-title">This product is out of stock.</h1><a class="button button-dark" href="#/product/${encodeURIComponent(product.id)}">Return to product</a></div></section>`;
+  return `<section class="section checkout-page"><div class="section-inner"><div class="checkout-intro"><p class="eyebrow">Checkout</p><h1 class="section-title">A clear handoff, not a pretend payment.</h1><p class="section-copy">Your accepted price is locked for this order. Choose online payment or cash on delivery.</p></div><div class="checkout-layout"><section class="dashboard-panel checkout-review"><p class="eyebrow">Review</p><div class="checkout-product"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}"><div><h2>${escapeHtml(product.name)}</h2><p>${escapeHtml(product.seller)}</p><span class="status-pill is-success">${product.stockQty} in stock · Offer accepted</span></div></div><div class="checkout-total"><span>Agreed amount · INR</span><strong>${formatPrice(amount)}</strong></div></section><form class="dashboard-panel checkout-actions" data-form="accepted-offer-checkout" data-offer-id="${offer.id}" novalidate><p class="eyebrow">Payment & delivery</p><h2>How would you like to pay?</h2>${renderSizeControl(product)}${renderPaymentMethodOptions()}${renderDeliveryFields(currentUser())}<button class="button button-dark" type="submit">Place order with selected payment <span aria-hidden="true">↗</span></button><div class="form-message" data-form-message aria-live="polite"></div><p class="field-help">Online payments open Razorpay. Cash-on-delivery orders remain unpaid until payment is collected at delivery.</p><a class="text-link" href="#/marketplace">Return to marketplace ↗</a></form></div></div></section>`;
+}
+function renderProductCheckout() {
+  const gate = renderAccessGate('buyer', 'buy');
+  if (gate) return gate;
+  const product = state.checkoutProduct;
+  if (!product) return renderPlaceholder('buy', 'Return to the marketplace and choose an available product.');
+  if (!hasStock(product)) return `<section class="section checkout-page"><div class="section-inner"><p class="eyebrow">Checkout</p><h1 class="section-title">This product is out of stock.</h1><a class="button button-dark" href="#/product/${encodeURIComponent(product.id)}">Return to product</a></div></section>`;
+  const user = currentUser();
+  return `<section class="section checkout-page"><div class="section-inner"><div class="checkout-intro"><p class="eyebrow">Checkout</p><h1 class="section-title">Review your purchase.</h1><p class="section-copy">Choose an online payment method in Razorpay, or place a cash-on-delivery order. Online payments are marked paid only after server verification.</p></div><div class="checkout-layout"><section class="dashboard-panel checkout-review"><p class="eyebrow">Your item</p><div class="checkout-product"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}"><div><h2>${escapeHtml(product.name)}</h2><p>${escapeHtml(product.seller)}</p><span class="status-pill is-success">${product.stockQty} in stock</span></div></div><div class="checkout-total"><span>Listing price · INR</span><strong>${formatPrice(product.price)}</strong></div></section><form class="dashboard-panel checkout-actions" data-form="product-checkout" data-product-id="${escapeHtml(product.id)}" novalidate><p class="eyebrow">Payment & delivery</p><h2>How would you like to pay?</h2>${renderSizeControl(product)}${renderPaymentMethodOptions()}${renderDeliveryFields(user)}<button class="button button-dark" type="submit">Continue with selected payment <span aria-hidden="true">↗</span></button><div class="form-message" data-form-message aria-live="polite"></div><p class="field-help">For online payment, Razorpay securely presents the available payment methods. Zuna never collects card or UPI credentials directly.</p></form></div></div></section>`;
 }
 function renderOrderConfirmation() {
-  const verified = state.offer.status === 'Verified';
-  return `<section class="section order-page"><div class="order-confirmation-card"><span class="order-mark" aria-hidden="true">${verified ? '✓' : '…'}</span><p class="eyebrow">${verified ? 'Backend-verified demo state' : 'Payment verification pending'}</p><h1 class="section-title">${verified ? 'Your order is confirmed.' : 'The handoff is waiting for verification.'}</h1><p>${verified ? 'The server would return the order reference and verified paid status here.' : 'A browser callback alone cannot mark an order paid. Connect FastAPI and Razorpay verification to complete this state.'}</p><div class="order-state"><span>Status</span><strong>${verified ? 'Verified · demo' : 'Pending verification'}</strong></div><div class="hero-actions"><a class="button button-dark" href="#/marketplace">Continue exploring</a><a class="button" href="#/buyer">View buyer space</a></div>${demoNote('No real order or payment was created')}</div></section>`;
+  const gate = renderAccessGate('buyer', 'order-confirmation');
+  if (gate) return gate;
+  const order = state.checkoutOrder;
+  const paid = order?.paymentStatus === 'paid';
+  const isCod = order?.paymentMethod === 'cod';
+  const deliveryDate = formatDeliveryDate(order?.expectedDelivery);
+  return `<section class="section order-page"><div class="order-confirmation-card"><span class="order-mark" aria-hidden="true">${paid || isCod ? '✓' : '…'}</span><p class="eyebrow">${paid ? 'Payment verified' : isCod ? 'Cash on delivery selected' : 'Payment verification pending'}</p><h1 class="section-title">${paid ? 'Your order is confirmed.' : isCod ? 'Your COD order is placed.' : 'Your payment is awaiting verification.'}</h1><p>${paid ? 'The server verified payment and updated this order.' : isCod ? 'Your order is recorded. Payment remains due at delivery and has not been marked paid.' : 'This order remains unpaid until the server confirms the payment provider status.'}</p><div class="order-state"><span>Order</span><strong>${escapeHtml(order?.id || 'No order reference')}</strong><span>Status</span><strong>${escapeHtml(order?.paymentStatus || 'Not started')}</strong>${order ? `<span>Amount</span><strong>${formatPrice(order.amount)}</strong>${order.size ? `<span>Size</span><strong>${escapeHtml(order.size)}</strong>` : ''}${deliveryDate ? `<span>Expected delivery</span><strong>${escapeHtml(deliveryDate)}</strong><span>Delivery time</span><strong>${escapeHtml(order.expectedDelivery.window)}</strong>` : ''}` : ''}</div><div class="hero-actions"><a class="button button-dark" href="#/marketplace">Continue exploring</a><a class="button" href="#/buyer">View buyer space</a></div></div></section>`;
 }
 
 function getRoute() { return window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean); }
-function renderRoute() {
-  const [route, id, action] = getRoute();
+async function loadRouteData(route, id) {
+  if (!productsLoaded && !['login', 'register'].includes(route)) {
+    state.products = await api.listProducts();
+    productsLoaded = true;
+  }
+  if (!currentUser()) return;
+  if (route === 'buyer') {
+    [state.offers, state.orders] = await Promise.all([api.listOffers(), api.listOrders()]);
+    state.wishlist = new Set(await api.listWishlist());
+  } else if (route === 'seller') {
+    if (id === 'products' || id === 'offers' || !id) {
+      state.sellerProducts = await apiRequest('/seller/products');
+      state.products = [...state.products.filter(product => !state.sellerProducts.some(owned => owned.id === product.id)), ...state.sellerProducts];
+    }
+    if (id === 'offers' || !id) {
+      state.offers = await api.listOffers();
+      state.offer = state.offers[0] || null;
+    }
+  } else if (route === 'creator') {
+    [state.opportunities, state.referrals] = await Promise.all([api.listOpportunities(), api.listReferrals()]);
+  } else if (route === 'collaborations') {
+    state.opportunities = await api.listOpportunities();
+    state.collaborationRequests = {};
+    for (const opportunity of state.opportunities) {
+      if (opportunity.request) state.collaborationRequests[opportunity.id] = opportunity.request;
+      if (isRole('seller') && opportunity.sellerId === currentUser().id) {
+        opportunity.requests = await apiRequest(`/collaborations/${encodeURIComponent(opportunity.id)}/requests`);
+      }
+    }
+  } else if (route === 'checkout') {
+    state.offers = await api.listOffers();
+    state.offer = state.offers.find(offer => String(offer.id) === id && offer.status === 'accepted')
+      || state.offers.find(offer => offer.status === 'accepted')
+      || null;
+  } else if (route === 'buy' && id) {
+    state.checkoutProduct = await api.getProduct(id);
+  } else if (route === 'order-confirmation' && id && currentUser()) {
+    state.checkoutOrder = await apiRequest(`/orders/${encodeURIComponent(id)}`);
+  } else if (route === 'product' && id) {
+    const product = await api.getProduct(id);
+    state.products = [...state.products.filter(item => item.id !== product.id), product];
+  }
+}
+function renderApiError(error) {
+  const message = error?.message || 'The API could not be reached.';
+  return `<section class="section route-placeholder"><p class="eyebrow">Connection issue</p><h1 class="section-title">Zuna could not load this view.</h1><p>${escapeHtml(message)}</p><button class="button button-dark" type="button" data-api-retry>Try again</button></section>`;
+}
+async function initializeBackend() {
+  const token = sessionStorage.getItem('zuna-access-token');
+  if (token) {
+    try {
+      state.demoSession = await apiRequest('/auth/me');
+      state.wishlist = new Set(await api.listWishlist());
+    } catch (error) {
+      if (error.status !== 401) throw error;
+      sessionStorage.removeItem('zuna-access-token');
+      state.demoSession = null;
+      state.wishlist.clear();
+    }
+  }
+  state.products = await api.listProducts();
+  productsLoaded = true;
+  const referralCode = new URLSearchParams(window.location.search).get('ref');
+  if (referralCode && referralCode !== state.referralCode) {
+    try {
+      await apiRequest(`/referrals/${encodeURIComponent(referralCode)}/visit`, { method: 'POST' });
+      state.referralCode = referralCode;
+      sessionStorage.setItem('zuna-referral-code', referralCode);
+    } catch (error) {
+      sessionStorage.removeItem('zuna-referral-code');
+      state.flash = error.status === 404 ? 'This referral link is no longer valid.' : `Referral visit could not be recorded: ${error.message}`;
+    }
+  }
+}
+let razorpayScriptPromise;
+function loadRazorpay() {
+  if (window.Razorpay) return Promise.resolve();
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+  razorpayScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Razorpay Checkout could not be loaded. Retry when you are online.'));
+    document.head.appendChild(script);
+  });
+  return razorpayScriptPromise;
+}
+async function openRazorpayCheckout(session, description, prefill = {}) {
+  state.checkoutOrder = { id: session.order_id, amount: session.amount, currency: session.currency, paymentStatus: 'pending', paymentMethod: 'razorpay' };
+  await loadRazorpay();
+  const checkout = new window.Razorpay({
+    key: session.key_id,
+    amount: session.amount * 100,
+    currency: session.currency,
+    order_id: session.razorpay_order_id,
+    name: 'Zuna',
+    description,
+    prefill,
+    handler: async response => {
+      try {
+        state.checkoutOrder = await apiRequest('/payments/verify', {
+          method: 'POST',
+          body: JSON.stringify({
+            order_id: session.order_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          })
+        });
+      } catch (error) {
+        state.apiError = error.message;
+        state.checkoutOrder = await apiRequest(`/orders/${encodeURIComponent(session.order_id)}`);
+      }
+      if (state.checkoutOrder.paymentStatus === 'paid') productsLoaded = false;
+      window.location.hash = `#/order-confirmation/${encodeURIComponent(session.order_id)}`;
+      renderRoute();
+    },
+    modal: {
+      ondismiss: () => {
+        state.checkoutOrder.paymentStatus = 'pending';
+        window.location.hash = `#/order-confirmation/${encodeURIComponent(session.order_id)}`;
+        renderRoute();
+      }
+    }
+  });
+  checkout.on('payment.failed', response => {
+    state.checkoutOrder.paymentStatus = 'failed';
+    state.checkoutOrder.failureReason = response.error?.description || 'Payment was not completed.';
+    window.location.hash = `#/order-confirmation/${encodeURIComponent(session.order_id)}`;
+    renderRoute();
+  });
+  checkout.open();
+}
+async function startProductCheckout(form) {
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const values = Object.fromEntries(new FormData(form).entries());
+    const session = await apiRequest('/checkout/products', {
+      method: 'POST',
+      body: JSON.stringify({ ...values, product_id: form.dataset.productId })
+    });
+    if (values.payment_method === 'cod') {
+      state.checkoutOrder = session;
+      productsLoaded = false;
+      window.location.hash = `#/order-confirmation/${encodeURIComponent(session.id)}`;
+      await renderRoute();
+      return;
+    }
+    await openRazorpayCheckout(session, state.checkoutProduct.name, {
+      name: values.delivery_name,
+      contact: values.delivery_phone
+    });
+  } catch (error) {
+    showFormMessage(form, error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+async function startOfferCheckout(form) {
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const values = Object.fromEntries(new FormData(form).entries());
+    if (!state.offer || state.offer.status !== 'accepted') throw new Error('An accepted offer is required before checkout.');
+    const session = await apiRequest('/checkout/sessions', {
+      method: 'POST',
+      body: JSON.stringify({
+        accepted_offer_id: Number(form.dataset.offerId),
+        size: values.size,
+        payment_method: values.payment_method,
+        delivery_name: values.delivery_name,
+        delivery_phone: values.delivery_phone,
+        delivery_address: values.delivery_address,
+        referral_code: state.referralCode || sessionStorage.getItem('zuna-referral-code') || undefined
+      })
+    });
+    if (values.payment_method === 'cod') {
+      state.checkoutOrder = await apiRequest(`/orders/${encodeURIComponent(session.order_id)}`);
+      productsLoaded = false;
+      window.location.hash = `#/order-confirmation/${encodeURIComponent(session.order_id)}`;
+      await renderRoute();
+      return;
+    }
+    await openRazorpayCheckout(session, state.offer.product.name, {
+      name: values.delivery_name,
+      contact: values.delivery_phone
+    });
+  } catch (error) {
+    showFormMessage(form, error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+async function renderRoute() {
+  const requestId = ++routeRequest;
+  const [route, id, action, productAction] = getRoute();
   const app = document.querySelector('#app');
+  try {
+    await loadRouteData(route, id);
+    if (requestId !== routeRequest) return;
+  } catch (error) {
+    if (requestId !== routeRequest) return;
+    state.products = productsLoaded ? state.products : [];
+    app.innerHTML = renderApiError(error);
+    updateNavigation();
+    return;
+  }
   if (!route) app.innerHTML = renderHome();
-  else if (route === 'marketplace' && !state.marketplace.ready) { state.marketplace.ready = true; app.innerHTML = renderMarketplaceLoading(); window.setTimeout(renderRoute, 160); return; }
   else if (route === 'marketplace') app.innerHTML = renderMarketplace();
   else if (route === 'product') app.innerHTML = renderProductDetail(id);
   else if (route === 'login' || route === 'register') app.innerHTML = renderAuthCard({ mode: route });
   else if (route === 'buyer') app.innerHTML = renderBuyer();
   else if (route === 'seller' && id === 'products' && action === 'new') app.innerHTML = renderProductForm();
-  else if (route === 'seller' && id === 'products' && action === 'edit') app.innerHTML = renderProductForm(getRoute()[2]);
+  else if (route === 'seller' && id === 'products' && productAction === 'edit') app.innerHTML = renderProductForm(action);
   else if (route === 'seller' && id === 'products') app.innerHTML = renderSellerProducts();
   else if (route === 'seller' && id === 'offers') app.innerHTML = renderSellerOffers();
+  else if (route === 'seller' && id === 'pricing') app.innerHTML = renderSellerPricing();
   else if (route === 'seller') app.innerHTML = renderSeller();
   else if (route === 'creator') app.innerHTML = renderCreator();
   else if (route === 'collaborations') app.innerHTML = renderCollaborations();
   else if (route === 'checkout') app.innerHTML = renderCheckout();
+  else if (route === 'buy') app.innerHTML = renderProductCheckout();
   else if (route === 'order-confirmation') app.innerHTML = renderOrderConfirmation();
   else app.innerHTML = renderPlaceholder(route);
+  if (isRole('buyer') && route !== 'buyer' && state.acceptedOfferPrompt) {
+    app.insertAdjacentHTML('beforeend', renderAcceptedOfferPrompt(state.acceptedOfferPrompt));
+  }
+  if (isRole('buyer') && route !== 'buyer' && state.offerPollError) {
+    app.insertAdjacentHTML('afterbegin', `<p class="form-message error" data-offer-poll-alert role="alert">Could not check for accepted offers: ${escapeHtml(state.offerPollError)}</p>`);
+  }
   updateNavigation();
   window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   app.focus({ preventScroll: true });
   closeMobileMenu();
   initialiseReveals();
   updateHomeDynamics();
+  if (state.acceptedOfferPrompt && isRole('buyer')) document.querySelector('[data-place-negotiated-order]')?.focus();
 }
 
 function navigationMarkup() {
   const user = currentUser();
   const links = user?.role === 'buyer' ? [['#/marketplace','Marketplace'],['#/buyer','My dashboard'],['#/story','Our story']] : user?.role === 'seller' ? [['#/marketplace','Marketplace'],['#/seller','Seller dashboard'],['#/seller/products','Products'],['#/seller/offers','Offers'],['#/collaborations','Collaborations']] : user?.role === 'creator' ? [['#/marketplace','Marketplace'],['#/creator','Creator dashboard'],['#/collaborations','Collaborations']] : [['#/marketplace','Marketplace'],['#/story','Our story'],['#/seller','For makers'],['#/creator','For creators']];
-  const account = user ? `<span class="session-chip">${escapeHtml(roleLabel(user.role))} demo</span><a href="#/login" data-reset-session>Reset</a>` : '<a href="#/login">Sign in</a>';
+  const account = user ? `<span class="session-chip">${escapeHtml(roleLabel(user.role))}</span><a href="#/login" data-reset-session>Sign out</a>` : '<a href="#/login">Sign in</a>';
   return `${links.map(([href,label]) => `<a href="${href}">${label}</a>`).join('')}<div class="nav-actions"><a class="icon-link" href="#/marketplace" aria-label="Search the marketplace">⌕</a><button class="icon-link theme-toggle" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme">◐</button><span class="nav-account">${account}</span><a class="button button-dark button-small" href="${user ? `#/${user.role}` : '#/register'}">${user ? 'Dashboard' : 'Join'} <span aria-hidden="true">↗</span></a></div>`;
 }
 function updateNavigation() { const nav = document.querySelector('#primary-navigation'); if (nav) nav.innerHTML = navigationMarkup(); }
@@ -272,7 +687,7 @@ function updateHomeDynamics() {
     section.style.setProperty('--section-lift', reduced ? '0px' : `${Math.round((1 - progress) * 34)}px`);
     section.style.setProperty('--section-leaving', reduced ? '0' : leaving.toFixed(3));
   });
-  const chapterNames = ['opening','edit','maker','pricing','creator','collection','join','closing'];
+  const chapterNames = ['opening','edit','maker','pricing','creator','join','closing'];
   experience.dataset.chapter = chapterNames[currentIndex] || 'opening';
   experience.style.setProperty('--ambient-shift', `${Math.round((window.scrollY / Math.max(document.documentElement.scrollHeight - window.innerHeight, 1)) * 100)}%`);
   experience.querySelectorAll('.home-big-statement, .home-feature-copy h2, .home-closing h2, .home-title').forEach(heading => {
@@ -282,40 +697,209 @@ function updateHomeDynamics() {
     heading.style.setProperty('--focus-scale', (1 + emphasis * 0.065).toFixed(3));
   });
 }
-function updateWishlist(id) { if (state.wishlist.has(id)) state.wishlist.delete(id); else state.wishlist.add(id); renderRoute(); }
+async function updateWishlist(id) {
+  if (!currentUser()) {
+    state.flash = 'Sign in to save products to your account.';
+    window.location.hash = '#/login';
+    renderRoute();
+    return;
+  }
+  const saved = !state.wishlist.has(id);
+  try {
+    await apiRequest(`/users/me/wishlist/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ saved }) });
+    if (saved) state.wishlist.add(id); else state.wishlist.delete(id);
+    renderRoute();
+  } catch (error) {
+    state.apiError = error.message;
+    renderRoute();
+  }
+}
+async function saveProductForLater(id) {
+  if (state.wishlist.has(id)) return;
+  await apiRequest(`/users/me/wishlist/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ saved: true })
+  });
+  state.wishlist.add(id);
+}
+async function deferAcceptedOfferOrder() {
+  const offer = state.acceptedOfferPrompt;
+  if (!offer) return;
+  const dialog = document.querySelector('.accepted-offer-dialog');
+  try {
+    await saveProductForLater(offer.product.id);
+    rememberOfferPromptDismissed(offer.id);
+    state.acceptedOfferPrompt = null;
+    await renderRoute();
+  } catch (error) {
+    if (dialog) showFormMessage(dialog, error.message);
+    else {
+      state.offerPollError = error.message;
+      renderRoute();
+    }
+  }
+}
+async function checkForAcceptedOffer() {
+  const [offers, orders] = await Promise.all([api.listOffers(), api.listOrders()]);
+  state.offers = offers;
+  state.orders = orders;
+  state.offerPollError = '';
+  const notice = document.querySelector('[data-offer-poll-error]');
+  if (notice) {
+    notice.hidden = true;
+    notice.textContent = '';
+  }
+  document.querySelector('[data-offer-poll-alert]')?.remove();
+  if (state.acceptedOfferPrompt && orders.some(order => order.offerId === state.acceptedOfferPrompt.id)) {
+    state.acceptedOfferPrompt = null;
+  }
+  if (getRoute()[0] === 'checkout') {
+    state.acceptedOfferPrompt = null;
+    return;
+  }
+  if (state.acceptedOfferPrompt) return;
+  const offer = offers.find(item => item.status === 'accepted'
+    && !orders.some(order => order.offerId === item.id)
+    && !isOfferPromptDismissed(item.id));
+  if (!offer) return;
+  state.acceptedOfferPrompt = offer;
+  await renderRoute();
+}
 function updateMarketplaceFilter(target) { const key = target.dataset.filter; const cursor = key === 'query' ? target.selectionStart : null; if (key === 'query') state.marketplace.query = target.value; else if (key) state.marketplace[key] = target.value; renderRoute(); if (key === 'query') { const search = document.querySelector('#product-search'); search?.focus(); if (cursor !== null) search?.setSelectionRange(cursor, cursor); } }
 function clearMarketplaceFilters() { state.marketplace = { ...state.marketplace, query: '', category: 'all', price: 'all', availability: 'all', offers: 'all', sort: 'featured' }; renderRoute(); }
-function resetDemoSession() { state.demoSession = null; state.products = PRODUCTS.map(product => ({ ...product })); state.wishlist.clear(); state.flash = 'The in-memory demo session was reset. Choose a role to begin again.'; window.location.hash = '#/login'; renderRoute(); }
+function resetDemoSession() { sessionStorage.removeItem('zuna-access-token'); state.demoSession = null; state.wishlist.clear(); state.pricingSuggestion = null; state.acceptedOfferPrompt = null; state.flash = 'You have signed out of your Zuna account.'; window.location.hash = '#/login'; renderRoute(); }
 function validateRequired(form, fields) { let valid = true; fields.forEach(([name, message, test]) => { const input = form.elements[name]; const error = form.querySelector(`[data-error-for="${name}"]`); const failed = !input || (test ? !test(input.value, form) : !String(input.value).trim()); if (error) error.textContent = failed ? message : ''; if (input && typeof input.setAttribute === 'function') input.setAttribute('aria-invalid', String(failed)); if (failed) valid = false; }); return valid; }
-function startSession(form, mode) {
-  const email = form.elements.email.value.trim(); const role = form.elements.role.value; const name = mode === 'register' ? form.elements.name.value.trim() : `${roleLabel(role)} demo`;
-  state.demoSession = { name: name || `${roleLabel(role)} demo`, email, role, createdAt: new Date().toISOString() };
-  state.flash = `Demo session ready as ${roleLabel(role)}. No password was stored.`;
-  window.location.hash = `#/${role}`;
+async function startSession(form, mode) {
+  const email = form.elements.email.value.trim();
+  const values = { email, password: form.elements.password.value };
+  const result = mode === 'register'
+    ? await api.register({ ...values, name: form.elements.name.value.trim(), role: form.elements.role.value })
+    : await api.login(values);
+  if (mode === 'login' && form.elements.role.value !== result.user.role) {
+    throw new Error(`This email belongs to a ${roleLabel(result.user.role)} account. Choose that role and try again.`);
+  }
+  sessionStorage.setItem('zuna-access-token', result.access_token);
+  state.demoSession = result.user;
+  state.flash = `You are signed in as ${roleLabel(result.user.role)}.`;
+  window.location.hash = `#/${result.user.role}`;
   renderRoute();
 }
-function saveProduct(form) {
+async function saveProduct(form) {
   const values = Object.fromEntries(new FormData(form).entries());
-  const id = form.dataset.productId || `${slugify(values.name)}-${Date.now().toString(36)}`;
-  const product = { id, name: values.name.trim(), maker: `${currentUser().name} · demo maker`, seller: `${currentUser().name}'s fictional studio`, region: 'Demo location', price: Number(values.price), cost: Number(values.cost), image: values.image, offers: values.offers === 'true', available: Number(values.stockQty) > 0, category: values.category, tags: [values.category.toLowerCase(), 'demo'], addedOrder: getProducts().length + 1, stock: Number(values.stockQty) > 0 ? 'Available · session sample' : 'Currently unavailable · session sample', stockQty: Number(values.stockQty), age: Number(values.age), description: values.description.trim(), story: 'A fictional listing created during the Zuna Phase 3 product-management demo.' };
-  const existingIndex = state.products.findIndex(item => item.id === id); if (existingIndex >= 0) state.products.splice(existingIndex, 1, product); else state.products.push(product);
-  state.flash = `${product.name} was ${existingIndex >= 0 ? 'updated' : 'added'} in the in-memory demo catalogue.`;
+  const id = form.dataset.productId;
+  const payload = {
+    name: values.name.trim(),
+    category: values.category,
+    price: Number(values.price),
+    cost: Number(values.cost),
+    stockQty: Number(values.stockQty),
+    age: Number(values.age),
+    image: values.image,
+    offers: values.offers === 'true',
+    description: values.description.trim()
+  };
+  const product = await apiRequest(id ? `/products/${encodeURIComponent(id)}` : '/products', {
+    method: id ? 'PUT' : 'POST',
+    body: JSON.stringify(payload)
+  });
+  const existingIndex = state.products.findIndex(item => item.id === product.id);
+  if (existingIndex >= 0) state.products.splice(existingIndex, 1, product); else state.products.push(product);
+  state.sellerProducts = [product, ...state.sellerProducts.filter(item => item.id !== product.id)];
+  state.flash = `${product.name} was ${id ? 'updated' : 'added'} to your listings.`;
   window.location.hash = '#/seller/products'; renderRoute();
 }
 
-document.addEventListener('click', event => {
+document.addEventListener('click', async event => {
   const homeScroll = event.target.closest('[data-scroll-home]'); if (homeScroll) { event.preventDefault(); document.getElementById(homeScroll.dataset.scrollHome)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); return; }
   const toggle = event.target.closest('.menu-toggle'); if (toggle) { const nav = document.querySelector('.primary-navigation'); const open = nav.classList.toggle('is-open'); toggle.setAttribute('aria-expanded', String(open)); document.body.classList.toggle('menu-open', open); return; }
   const passwordToggle = event.target.closest('[data-password-toggle]'); if (passwordToggle) { const input = document.getElementById(passwordToggle.getAttribute('aria-controls')); const show = input.type === 'password'; input.type = show ? 'text' : 'password'; passwordToggle.textContent = show ? 'Hide' : 'Show'; passwordToggle.setAttribute('aria-label', `${show ? 'Hide' : 'Show'} password`); return; }
-  const collabRequest = event.target.closest('[data-collab-request]'); if (collabRequest) { state.collaborationRequests[collabRequest.dataset.collabRequest] = { status: 'Pending', submittedAt: new Date().toISOString() }; state.flash = 'Demo request sent. A seller would review it in live mode.'; renderRoute(); return; }
-  const collabAccept = event.target.closest('[data-collab-accept]'); if (collabAccept) { state.collaborationRequests[collabAccept.dataset.collabAccept] = { status: 'Accepted', acceptedAt: new Date().toISOString(), referralCode: `demo-${collabAccept.dataset.collabAccept}` }; state.flash = 'Demo creator request accepted. Referral issuance remains backend-owned in live mode.'; renderRoute(); return; }
-  const referralCopy = event.target.closest('[data-referral-copy]'); if (referralCopy) { const link = `${window.location.origin}${window.location.pathname}#/product/ceramic-sun-vessel?ref=zuna-demo-${referralCopy.dataset.referralCopy}`; navigator.clipboard?.writeText(link).then(() => showFormMessage(document.querySelector('.collaboration-card'), 'Referral link copied for manual sharing.', 'success')).catch(() => showFormMessage(document.querySelector('.collaboration-card'), link, 'success')); return; }
-  const offerAction = event.target.closest('[data-offer-action]'); if (offerAction) { const action = offerAction.dataset.offerAction; if (action === 'accept') { state.offer.status = 'Accepted'; state.offer.history.push({ actor: 'Seller demo', amount: state.offer.counterPrice, status: 'Accepted', time: 'Just now' }); state.flash = 'Demo counter accepted. Checkout remains a separate backend-authoritative step.'; } else if (action === 'reject') { state.offer.status = 'Rejected'; state.offer.history.push({ actor: 'Seller demo', amount: state.offer.offeredPrice, status: 'Rejected', time: 'Just now' }); } else { state.offer.counterPrice += 100; state.offer.status = 'Countered'; state.offer.history.push({ actor: 'Seller demo', amount: state.offer.counterPrice, status: 'Countered', time: 'Just now' }); } renderRoute(); return; }
-  const demoCheckout = event.target.closest('[data-demo-checkout]'); if (demoCheckout) { state.offer.status = 'Pending verification'; state.flash = 'Demo checkout handoff started. No payment was created or verified.'; window.location.hash = '#/order-confirmation'; renderRoute(); return; }
+  const collabRequest = event.target.closest('[data-collab-request]');
+  if (collabRequest) {
+    try {
+      await apiRequest(`/collaborations/${encodeURIComponent(collabRequest.dataset.collabRequest)}/requests`, { method: 'POST' });
+      state.flash = 'Your collaboration request was sent.';
+      renderRoute();
+    } catch (error) { showFormMessage(collabRequest.closest('.collaboration-card'), error.message); }
+    return;
+  }
+  const collabReview = event.target.closest('[data-collab-review]');
+  if (collabReview) {
+    const opportunityId = collabReview.dataset.collabOpportunity;
+    const action = collabReview.dataset.collabAction;
+    try {
+      const result = await apiRequest(`/collaborations/${encodeURIComponent(opportunityId)}/requests/${collabReview.dataset.collabReview}/${action}`, { method: 'POST' });
+      if (result.referralLink) state.flash = 'Request accepted and a referral link was issued.';
+      renderRoute();
+    } catch (error) { showFormMessage(collabReview.closest('.collaboration-card'), error.message); }
+    return;
+  }
+  const copyLink = event.target.closest('[data-copy-link]');
+  if (copyLink) {
+    const link = new URL(copyLink.dataset.copyLink, window.location.origin).href;
+    try {
+      await navigator.clipboard.writeText(link);
+      state.flash = 'Referral link copied. Visits are recorded when the link is opened.';
+      renderRoute();
+    } catch (error) { showFormMessage(copyLink.closest('.dashboard-panel, .collaboration-card'), `Copy this link: ${link}`, 'success'); }
+    return;
+  }
+  const offerAction = event.target.closest('[data-offer-action]');
+  if (offerAction) {
+    try {
+      const updatedOffer = await apiRequest(`/offers/${offerAction.dataset.offerId}/${offerAction.dataset.offerAction}`, { method: 'POST' });
+      if (offerAction.dataset.offerAction === 'accept' && currentUser()?.role === 'buyer' && updatedOffer.status === 'accepted') {
+        state.acceptedOfferPrompt = updatedOffer;
+      } else {
+        state.flash = `Offer ${offerAction.dataset.offerAction}ed.`;
+      }
+      await renderRoute();
+      if (state.acceptedOfferPrompt) document.querySelector('[data-place-negotiated-order]')?.focus();
+    } catch (error) { showFormMessage(offerAction.closest('.dashboard-panel'), error.message); }
+    return;
+  }
+  const placeNegotiatedOrder = event.target.closest('[data-place-negotiated-order]');
+  if (placeNegotiatedOrder) {
+    const offerId = placeNegotiatedOrder.dataset.placeNegotiatedOrder;
+    state.acceptedOfferPrompt = null;
+    const checkoutHash = `#/checkout/${encodeURIComponent(offerId)}`;
+    if (window.location.hash === checkoutHash) renderRoute();
+    else window.location.hash = checkoutHash;
+    return;
+  }
+  const dismissOrderPrompt = event.target.closest('[data-dismiss-offer-order]');
+  if (dismissOrderPrompt || event.target.matches('.accepted-offer-backdrop')) {
+    await deferAcceptedOfferOrder();
+    return;
+  }
   const wishlist = event.target.closest('[data-wishlist]'); if (wishlist) { event.preventDefault(); event.stopPropagation(); updateWishlist(wishlist.dataset.wishlist); return; }
+  if (event.target.closest('[data-api-retry]')) {
+    try { await initializeBackend(); state.apiError = ''; renderRoute(); } catch (error) { document.querySelector('#app').innerHTML = renderApiError(error); }
+    return;
+  }
   if (event.target.closest('[data-clear-filters]')) { clearMarketplaceFilters(); return; }
   if (event.target.closest('[data-reset-session]')) { event.preventDefault(); resetDemoSession(); return; }
   if (event.target.closest('.primary-navigation a')) closeMobileMenu();
+});
+document.addEventListener('keydown', async event => {
+  if (!state.acceptedOfferPrompt) return;
+  if (event.key === 'Escape') {
+    await deferAcceptedOfferOrder();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const dialog = document.querySelector('.accepted-offer-dialog');
+  if (!dialog) return;
+  const focusable = [...dialog.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),[tabindex]:not([tabindex="-1"])')];
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+    event.preventDefault();
+    first.focus();
+  }
 });
 document.addEventListener('pointermove', event => {
   if (event.pointerType === 'touch') return;
@@ -332,36 +916,104 @@ document.addEventListener('pointerdown', event => {
   window.setTimeout(() => card.isConnected && card.classList.remove('is-touched'), 700);
 });
 document.addEventListener('input', event => { if (event.target.matches('[data-filter="query"]')) updateMarketplaceFilter(event.target); if (event.target.matches('[data-collab-filter]')) { const query = event.target.value.toLowerCase(); document.querySelectorAll('.collaboration-card').forEach(card => { card.hidden = query && !card.textContent.toLowerCase().includes(query); }); } });
-document.addEventListener('change', event => { if (event.target.matches('[data-filter]') && event.target.dataset.filter !== 'query') updateMarketplaceFilter(event.target); });
-document.addEventListener('submit', event => {
+document.addEventListener('change', event => {
+  if (event.target.matches('[data-product-size]')) state.selectedSizes[event.target.dataset.productSize] = event.target.value;
+  if (event.target.matches('[data-filter]') && event.target.dataset.filter !== 'query') updateMarketplaceFilter(event.target);
+});
+document.addEventListener('submit', async event => {
   const form = event.target.closest('[data-form]'); if (!form) return; event.preventDefault();
-  if (form.dataset.form === 'login') {
+  if (form.dataset.form === 'accepted-offer-checkout') {
+    const valid = validateRequired(form, [
+      ['size', 'Choose a size.', null],
+      ['delivery_name', 'Enter the recipient name.', null],
+      ['delivery_phone', 'Enter a valid contact number.', value => /^[+0-9][0-9\s()-]{6,29}$/.test(value)],
+      ['delivery_address', 'Enter a delivery address with at least 8 characters.', value => value.length >= 8]
+    ]);
+    if (!valid) return showFormMessage(form, 'Please complete the delivery details before continuing.');
+    await startOfferCheckout(form);
+  } else if (form.dataset.form === 'product-checkout') {
+    const valid = validateRequired(form, [
+      ['size', 'Choose a size.', null],
+      ['delivery_name', 'Enter the recipient name.', null],
+      ['delivery_phone', 'Enter a valid contact number.', value => /^[+0-9][0-9\s()-]{6,29}$/.test(value)],
+      ['delivery_address', 'Enter a delivery address with at least 8 characters.', value => value.length >= 8]
+    ]);
+    if (!valid) return showFormMessage(form, 'Please complete the delivery details before continuing.');
+    await startProductCheckout(form);
+  } else if (form.dataset.form === 'login') {
     const valid = validateRequired(form, [['email','Enter a valid email address.', value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)],['password','Use at least 8 characters for this demo.', value => value.length >= 8]]);
     if (!valid) return showFormMessage(form, 'Please fix the highlighted fields before continuing.');
-    startSession(form, 'login');
+    try { await startSession(form, 'login'); } catch (error) { showFormMessage(form, error.message); }
   } else if (form.dataset.form === 'register') {
     const valid = validateRequired(form, [['name','Tell us the name to show in this demo.', null],['email','Enter a valid email address.', value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)],['password','Use at least 8 characters for this demo.', value => value.length >= 8],['role','Choose a demo role.', (_, currentForm) => Boolean(currentForm.querySelector('input[name="role"]:checked'))]]);
     const password = form.elements.password.value; const confirmation = form.elements.confirmPassword;
     if (confirmation && password !== confirmation.value) { valid = false; form.querySelector('[data-error-for="confirmPassword"]')?.replaceChildren(document.createTextNode('Passwords do not match.')); }
     if (!valid) return showFormMessage(form, 'Please fix the highlighted fields before creating the demo session.');
-    startSession(form, 'register');
+    try { await startSession(form, 'register'); } catch (error) { showFormMessage(form, error.message); }
   } else if (form.dataset.form === 'offer') {
     const valid = validateRequired(form, [['offerAmount','Enter an offer above zero.', value => Number(value) > 0]]);
-    if (!valid) return showFormMessage(form, 'Please enter a valid demo offer.');
-    state.offer = { ...state.offer, offeredPrice: Number(form.elements.offerAmount.value), status: 'Pending', history: [{ actor: 'Buyer demo', amount: Number(form.elements.offerAmount.value), status: 'Pending', time: 'Just now' }] };
-    state.flash = 'Demo offer sent. A seller response would come from the backend in live mode.'; window.location.hash = '#/buyer'; renderRoute();
+    if (!valid) return showFormMessage(form, 'Please enter an offer above zero.');
+    try {
+      await apiRequest(`/products/${encodeURIComponent(form.dataset.productId)}/offers`, { method: 'POST', body: JSON.stringify({ amount: Number(form.elements.offerAmount.value) }) });
+      state.flash = 'Your offer was sent to the seller.';
+      window.location.hash = '#/buyer';
+      renderRoute();
+    } catch (error) { showFormMessage(form, error.message); }
   } else if (form.dataset.form === 'product') {
     const valid = validateRequired(form, [['name','Add a product name.', null],['price','Enter a listing price above zero.', value => Number(value) > 0],['cost','Enter a non-negative estimated cost.', value => Number(value) >= 0],['stockQty','Enter a stock quantity.', value => Number(value) >= 0],['age','Enter inventory age in days.', value => Number(value) >= 0],['description','Add a short product description.', null]]);
     if (!valid) return showFormMessage(form, 'Please fix the highlighted listing fields.');
-    saveProduct(form);
+    try { await saveProduct(form); } catch (error) { showFormMessage(form, error.message); }
+  } else if (form.dataset.form === 'counter') {
+    try {
+      await apiRequest(`/offers/${form.dataset.offerId}/counter`, { method: 'POST', body: JSON.stringify({ amount: Number(form.elements.amount.value) }) });
+      state.flash = 'Your counter offer was sent.';
+      renderRoute();
+    } catch (error) { showFormMessage(form, error.message); }
+  } else if (form.dataset.form === 'collaboration') {
+    try {
+      const values = Object.fromEntries(new FormData(form).entries());
+      await apiRequest('/collaborations', { method: 'POST', body: JSON.stringify(values) });
+      state.flash = 'Your collaboration opportunity was published.';
+      renderRoute();
+    } catch (error) { showFormMessage(form, error.message); }
+  } else if (form.dataset.form === 'pricing') {
+    try {
+      const values = Object.fromEntries(new FormData(form).entries());
+      const payload = {
+        unit_cost: Number(values.unit_cost),
+        target_margin_percent: Number(values.target_margin_percent),
+        inventory_age_days: Number(values.inventory_age_days),
+        demand_index: Number(values.demand_index)
+      };
+      state.pricingInput = payload;
+      state.pricingSuggestion = await apiRequest('/seller/pricing/suggest', { method: 'POST', body: JSON.stringify(payload) });
+      renderRoute();
+    } catch (error) { showFormMessage(form, error.message); }
   }
 });
 document.addEventListener('error', event => { const image = event.target; if (image instanceof HTMLImageElement && image.dataset.fallbackImage === 'true' && image.src !== FALLBACK_IMAGE) { image.src = FALLBACK_IMAGE; image.alt = 'Zuna sample image placeholder'; } }, true);
 window.addEventListener('hashchange', renderRoute);
+window.setInterval(() => {
+  if (document.visibilityState !== 'visible' || !isRole('buyer')) return;
+  checkForAcceptedOffer().catch(error => {
+    state.offerPollError = error.message;
+    const notice = document.querySelector('[data-offer-poll-error], [data-offer-poll-alert]');
+    if (notice) {
+      notice.hidden = false;
+      notice.textContent = `Could not check for accepted offers: ${error.message}`;
+    } else {
+      document.querySelector('#app')?.insertAdjacentHTML('afterbegin', `<p class="form-message error" data-offer-poll-alert role="alert">Could not check for accepted offers: ${escapeHtml(error.message)}</p>`);
+    }
+  });
+}, 8000);
 function applyTheme(theme) { document.documentElement.dataset.theme = theme; try { localStorage.setItem('zuna-theme', theme); } catch (error) {} const toggle = document.querySelector('[data-theme-toggle]'); if (toggle) { toggle.setAttribute('aria-pressed', String(theme === 'dark')); toggle.textContent = theme === 'dark' ? '☼' : '◐'; toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'); } }
 function initialiseTheme() { let theme = 'light'; try { theme = localStorage.getItem('zuna-theme') || 'light'; } catch (error) {} applyTheme(theme); }
 function initialiseLoader() { const loader = document.querySelector('[data-preloader]'); if (!loader) return; const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; let seen = false; try { seen = sessionStorage.getItem('zuna-loader-seen') === '1'; } catch (error) {} if (seen) { loader.hidden = true; return; } let dismissed = false; const startedAt = performance.now(); const progress = loader.querySelector('[data-loader-progress]'); const status = loader.querySelector('[data-loader-status]'); const images = [...loader.querySelectorAll('img')]; let loaded = images.filter(image => image.complete).length; const update = () => { const elapsed = Math.min(1, (performance.now() - startedAt) / 5000); const assetRatio = images.length ? loaded / images.length : 1; const value = Math.min(100, Math.round(Math.max(elapsed, assetRatio) * 100)); if (progress) progress.style.width = `${value}%`; if (status) status.textContent = value >= 100 ? 'Opening your considered edit…' : `Setting the scene · ${value}%`; }; const dismiss = () => { if (dismissed) return; dismissed = true; update(); loader.classList.add('is-done'); window.setTimeout(() => { loader.hidden = true; }, reduced ? 100 : 700); try { sessionStorage.setItem('zuna-loader-seen', '1'); } catch (error) {} }; images.forEach(image => { if (!image.complete) { image.addEventListener('load', () => { loaded += 1; update(); }, { once: true }); image.addEventListener('error', () => { loaded += 1; update(); }, { once: true }); } }); update(); const minimumTime = new Promise(resolve => window.setTimeout(resolve, reduced ? 0 : 5000)); const assetsReady = Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise(resolve => { image.addEventListener('load', resolve, { once: true }); image.addEventListener('error', resolve, { once: true }); }))); Promise.all([assetsReady, minimumTime]).then(dismiss); loader.querySelector('[data-skip-loader]')?.addEventListener('click', dismiss); window.setInterval(() => { if (!dismissed) update(); }, 120); window.setTimeout(dismiss, reduced ? 1200 : 9000); }
 document.addEventListener('click', event => {
+  const categoryLink = event.target.closest('[data-category-link]');
+  if (categoryLink && CATEGORIES.includes(categoryLink.dataset.categoryLink)) {
+    state.marketplace.category = categoryLink.dataset.categoryLink;
+  }
   const theme = event.target.closest('[data-theme-toggle]');
   if (theme) applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
   const next = event.target.closest('[data-creator-next]');
@@ -371,4 +1023,17 @@ document.addEventListener('click', event => {
 });
 function startThemeAttentionCue() { const toggle = document.querySelector('[data-theme-toggle]'); if (!toggle) return; toggle.classList.add('theme-toggle-attention'); window.setTimeout(() => toggle.classList.remove('theme-toggle-attention'), 60000); }
 function initialiseHeroSlideshow() { const slideshow = document.querySelector('[data-hero-slideshow]'); const experience = document.querySelector('[data-home-experience]'); if (!slideshow || !experience) return; const slides = [...slideshow.querySelectorAll('[data-hero-slide]')]; if (slides.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; let current = 0; const setTone = () => { const tone = slides[current].dataset.heroTone || 'red'; experience.dataset.heroTone = tone; }; setTone(); window.setInterval(() => { slides[current].classList.remove('is-active'); current = (current + 1) % slides.length; slides[current].classList.add('is-active'); setTone(); }, 2800); }
-document.addEventListener('DOMContentLoaded', () => { initialiseTheme(); initialiseLoader(); renderRoute(); initialiseMotion(); startThemeAttentionCue(); initialiseHeroSlideshow(); });
+document.addEventListener('DOMContentLoaded', async () => {
+  initialiseTheme();
+  initialiseLoader();
+  initialiseMotion();
+  startThemeAttentionCue();
+  initialiseHeroSlideshow();
+  try {
+    await initializeBackend();
+  } catch (error) {
+    state.products = [];
+    state.apiError = error.message;
+  }
+  renderRoute();
+});

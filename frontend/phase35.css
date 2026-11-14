@@ -157,3 +157,32 @@ html,body,#site-shell{max-width:100%;overflow-x:clip}
 @media (max-width:900px){.collaboration-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.offer-workspace,.checkout-layout{grid-template-columns:1fr}}
 @media (max-width:600px){.collaboration-toolbar{align-items:stretch;flex-direction:column}.collaboration-grid{grid-template-columns:1fr}.offer-actions{display:grid}.offer-actions .button{width:100%}.checkout-total strong{font-size:2.5rem}.checkout-product h2{font-size:1.6rem}}
 @media (prefers-reduced-motion:reduce){.collaboration-card-image img{transition:none}}
+.category-tile .category-cover{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;opacity:.86;transition:transform .45s ease}
+.category-tile::after{inset:0;border-radius:0;background:linear-gradient(180deg,rgba(49,14,16,.12),rgba(49,14,16,.78));opacity:1;transform:none}
+.category-tile:hover .category-cover,.category-tile:focus-visible .category-cover{transform:scale(1.05)}
+.category-tile:hover::after{transform:none}
+.accepted-offer-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:1rem;background:rgba(35,18,18,.72);backdrop-filter:blur(5px)}
+.accepted-offer-dialog{position:relative;display:grid;gap:1rem;width:min(100%,34rem);padding:clamp(2rem,6vw,3rem);background:var(--ivory);border:1px solid var(--line);box-shadow:0 24px 80px rgba(0,0,0,.28)}
+.accepted-offer-dialog h2{margin:0;font:clamp(2.2rem,7vw,3.8rem)/.95 var(--display);color:var(--bean)}
+.accepted-offer-dialog>p:not(.eyebrow){margin:0;color:var(--cinereous);line-height:1.55}
+.accepted-offer-dialog-close{position:absolute;top:.7rem;right:.7rem;display:grid;place-items:center;width:2.5rem;height:2.5rem;border:1px solid var(--line);background:transparent;color:var(--bean);font-size:1.4rem;cursor:pointer}
+.accepted-offer-price{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.accepted-offer-price span{font:600 .68rem var(--label);letter-spacing:.08em;text-transform:uppercase;color:var(--cinereous)}
+.accepted-offer-price strong{font:2rem/.9 var(--display);color:var(--blood)}
+.accepted-offer-dialog .button{width:100%;justify-content:center}
+.accepted-offer-later{justify-self:center;padding:.5rem;border:0;background:transparent;color:var(--cinereous);text-decoration:underline;text-underline-offset:.2em;cursor:pointer}
+@media (max-width:600px){.accepted-offer-dialog{gap:.85rem;padding:2.5rem 1.4rem 1.4rem}}
+.product-action-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;align-items:stretch;min-width:0}
+.product-action-panels>.offer-panel{min-width:0;margin:0}
+@media (max-width:800px){.product-detail-grid{grid-template-columns:minmax(0,1fr)}.product-detail-copy,.product-action-panels{min-width:0}.product-action-panels{grid-template-columns:minmax(0,1fr)}}
+.order-state{display:grid;grid-template-columns:minmax(6rem,auto) minmax(0,1fr);gap:.6rem 1rem;width:min(100%,32rem);text-align:left}
+.order-state strong{overflow-wrap:anywhere;text-align:right}
+.size-fieldset{min-width:0;margin:0;padding:0;border:0}
+.size-fieldset legend{margin:0 0 .55rem;padding:0;color:var(--drab);font-size:.72rem;font-weight:700;letter-spacing:.04em}
+.size-options{display:flex;flex-wrap:wrap;gap:.5rem}
+.size-option{position:relative;display:block;margin:0!important;cursor:pointer}
+.size-option input{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;opacity:0;clip-path:inset(50%)}
+.size-option span{display:flex;min-width:2.8rem;min-height:2.65rem;align-items:center;justify-content:center;padding:.5rem .7rem;border:1px solid var(--line);background:var(--ivory);color:var(--ink);font:600 .85rem var(--label);transition:background .18s ease,border-color .18s ease,color .18s ease}
+.size-option input:checked+span{border-color:var(--blood);background:var(--blood);color:var(--vanilla);box-shadow:inset 0 -3px 0 rgba(244,227,178,.45)}
+.size-option input:focus-visible+span{outline:2px solid var(--blood);outline-offset:2px}
+.size-fieldset .field-help{margin-top:.65rem}

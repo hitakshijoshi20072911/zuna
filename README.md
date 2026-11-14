@@ -1,57 +1,62 @@
-# Zuna frontend
+# Zuna marketplace
 
-Zuna is an AI-assisted negotiation and social-commerce marketplace concept for Indian artisans, MSMEs and home-based businesses. This repository currently contains the **Phase 5 integration-ready static frontend**: the Phase 1 brand foundation, Phase 2 marketplace discovery and Phase 3 authentication UI plus role-based demo experiences.
+Zuna is an editorial marketplace for independent makers, buyers and creators. The existing vanilla-JavaScript frontend now uses a FastAPI backend and a persistent SQLite database for accounts, listings, wishlists, offers, collaborations, referrals and orders.
 
 ## Stack
 
-- HTML5, CSS3 and Vanilla JavaScript (ES6+)
-- One entry point: `frontend/home.html`
-- Primary application files: `frontend/home.html`, `frontend/index.css`, `frontend/index.js`
-- Local editorial WebP assets under `frontend/assets/images/`
-- No framework, bundler or UI library
+- Frontend: HTML, CSS and vanilla JavaScript in `frontend/`
+- Backend: Python 3.10+, FastAPI, SQLAlchemy 2 and Pydantic
+- Database: SQLite by default; configure `DATABASE_URL` to use another SQLAlchemy-supported database
+- Payments: Razorpay Orders and server-side signature/status verification when server credentials are configured
 
-## Local preview
+## Run locally on Windows
 
-From the repository root, serve the `frontend/` directory with any static server, for example:
+From the repository root in PowerShell:
 
-```bash
-cd frontend
-python3 -m http.server 4173
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r backend\requirements.txt
+python -m uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://localhost:4173/`. Because the entry point is `home.html`, the Vercel configuration rewrites `/` to `/home.html` when the project root is set to `frontend`.
+Open `http://127.0.0.1:8000/`. FastAPI serves the existing frontend and the API from the same origin. API documentation is at `http://127.0.0.1:8000/docs`; health check is `/api/v1/health`.
 
-## Routes in this phase
+On first startup, the API creates `backend/zuna.db` and seeds the fictional catalogue used by the existing design. New user data is persisted across restarts. The database file is ignored by Git.
 
-The frontend uses hash routes from the single HTML entry point:
+## Configuration
 
-- `#/` — homepage
-- `#/marketplace` — Phase 2 marketplace with local search, category/price/availability/offer filters, sort modes, wishlist state and empty/loading states
-- `#/product/:id` — Phase 2 product detail with gallery, seller story, stock state and a disabled offer-entry shell
-- `#/login` and `#/register` — validated demo sign-in/profile forms with password visibility controls and buyer/seller/creator role selection
-- `#/buyer` — buyer overview with sample offers, order history and session-only saved products
-- `#/seller` — seller overview with listing summary, stock-age indicators and pending offers
-- `#/seller/products` — seller product table with add and edit actions
-- `#/seller/products/new` and `#/seller/products/:id/edit` — validated product forms for session-only demo listings
-- `#/creator` — creator profile and collaboration summary
-- `#/collaborations` — creator opportunity discovery with request states and demo referral-link handling
-- `#/seller/offers` — seller negotiation workspace with explicit pending/countered/accepted/rejected states
-- `#/checkout` and `#/order-confirmation` — backend-authoritative demo checkout and verification boundary screens
-- `docs/frontend-api-contract.md` — FastAPI/Razorpay handoff contract
+Set secrets in the backend process environment; never put them in browser code:
 
-## Demo limitations
+- `ZUNA_TOKEN_SECRET` — required for production; use a high-entropy secret. Development has a local-only fallback.
+- `ZUNA_ENV=production` — makes the server fail closed if `ZUNA_TOKEN_SECRET` is missing.
+- `DATABASE_URL` — optional SQLAlchemy URL; defaults to `backend/zuna.db`.
+- `ZUNA_ALLOWED_ORIGINS` — comma-separated browser origins when the frontend is hosted separately.
+- `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` — optional server-side Razorpay credentials. Without both, online checkout returns `503`; cash-on-delivery orders remain available.
 
-Products, maker labels, prices, offers, orders, creator metrics and interactions are illustrative sample data. Phase 3 uses an explicit **in-memory demo session** only: it is not secure authentication, does not store plaintext passwords, and does not provide authorization. Enter any fictional email and a password of at least eight characters, choose a role, and use the Reset control or refresh the page to clear the session. Product add/edit changes and wishlist changes last only until refresh/reset. FastAPI, database persistence, real authentication, AI pricing, negotiation persistence, creator approvals and Razorpay checkout remain unconnected. Phase 5 screens are mock-mode only and never claim payment, verification or conversion success. No payment, login or seller operation is represented as successful.
+The frontend defaults to `/api/v1`. To host it separately, change the `zuna-api-base-url` meta value in `frontend/home.html` to the backend API base URL (including `/api/v1`), or define `window.ZUNA_API_BASE_URL` before `index.js` loads.
 
-## Phase 3 demo walkthrough
+## Functional flows
 
-1. Open `#/register`, enter a fictional name/email, choose Buyer, Seller or Creator, and create a demo session.
-2. Use the role-aware navigation to open the matching dashboard. Directly opening a different role route shows a clear role-mismatch state rather than exposing that dashboard.
-3. In the Seller dashboard, open **Manage products**, add a sample product, then edit it from the product table. The updated values remain coherent during the current in-memory session.
-4. Use **Reset** in the shared navigation, or refresh the page, to clear the demo session and return to sign-in. Backend authorization remains mandatory for a real application.
+- Register and sign in as buyer, seller or creator; passwords are stored as scrypt hashes and API requests use expiring signed bearer tokens.
+- Browse and filter the seeded and seller-created catalogue. Product pages show other in-stock options from the same product family when defined, or from the same category otherwise; sellers can create and edit only their own listings.
+- Save products to the signed-in buyer's persistent wishlist.
+- Buyers can negotiate on seller-owned listings and sample products; listing owners manage their offers, while sellers can respond to sample-product offers through the shared seller inbox.
+- Sellers can request an explainable price estimate from cost, target margin, inventory age and demand inputs; this bounded formula is explicitly not an AI prediction.
+- Sellers publish collaboration opportunities for their listings. Creators request them; only the owning seller can review requests. Approval issues backend-generated referral links and visit counts are recorded by the API.
+- Buyers can purchase available products at listed or accepted negotiated prices using Razorpay (UPI, cards, net banking or wallets) or cash on delivery. Online orders become paid only after server-side signature and captured-payment verification; COD orders remain unpaid until payment is collected at delivery.
 
-## Vercel setup
+The seeded catalogue is illustrative and is not owned by an account. Buyers can place direct orders at listed prices or negotiate a sample product price and check out after acceptance.
 
-Import the repository into Vercel with `frontend` as the Root Directory, framework preset **Other**, no build command and `.` as the output directory. With that recommended setting, `frontend/vercel.json` rewrites `/` to `/home.html`.
+## Tests
 
-For projects that were already created with the repository root as Root Directory, the root-level `vercel.json` provides compatibility rewrites for `/`, `/index.css`, `/index.js`, `/assets/*` and `/manus-routes.json`; this keeps the current production project working while its Vercel setting is corrected. Do not set a build command or install dependencies. After changing Root Directory, redeploy and verify `/`, `/#/marketplace`, the CSS file, the JavaScript file and an image asset. The repository owner must connect and verify Vercel; deployment is not claimed until the public production URL returns the styled Zuna page.
+```powershell
+python -m unittest discover -s backend\tests -v
+node --check frontend\index.js
+```
+
+The API tests cover authentication, catalogue reads, seller ownership, offer negotiation, direct product checkout, COD order creation, collaboration approval/referral tracking and Razorpay verification with mocked provider responses. A live Razorpay transaction requires valid server-side test credentials.
+
+## Deployment
+
+Deploy FastAPI and the database as a backend service with persistent disk storage for SQLite (or configure a managed database). Static frontend hosting may remain on Vercel; set its `zuna-api-base-url` to the deployed API base and configure `ZUNA_ALLOWED_ORIGINS` on the API. Do not expose Razorpay secrets, JWT signing secrets or database credentials to the browser. SQLite files on ephemeral serverless storage are not persistent; use a managed database for that deployment model.

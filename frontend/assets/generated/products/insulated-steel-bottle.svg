@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="insulated steel bottle sample">
+  <rect width="800" height="1000" fill="#e4e6df"/>
+  <rect x="342" y="205" width="116" height="95" rx="20" fill="#52625c"/>
+  <path d="M320 292h160l35 90v354c0 72-45 111-115 111s-115-39-115-111V382z" fill="#8ea19a"/>
+  <path d="M320 292h160l18 47H302z" fill="#52625c"/>
+  <path d="M294 470h212M294 680h212" stroke="#d5ddd6" stroke-width="12" opacity=".9"/>
+  <path d="M354 402v244" stroke="#d9e2de" stroke-width="12" stroke-linecap="round"/>
+  <text x="54" y="930" fill="#394944" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / INSULATED STEEL</text>
+</svg>

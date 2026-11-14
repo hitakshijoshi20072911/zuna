@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="sage green Chanderi-inspired saree sample">
+  <rect width="800" height="1000" fill="#efe9dc"/>
+  <path d="M154 108h470l74 698-112 74-148-257-181 257-91-74 113-450z" fill="#93a58b"/>
+  <path d="M154 108h470l9 54H145zM436 625l113 196-111 73-36-62 111-72-111-196z" fill="#d4bc7a"/>
+  <path d="M174 200h418M165 218h432M189 330h402M181 348h408M207 458h389M198 476h397" fill="none" stroke="#f5f0e2" stroke-width="6" opacity=".85"/>
+  <g fill="none" stroke="#f5f0e2" stroke-width="6">
+    <circle cx="260" cy="275" r="19"/><circle cx="380" cy="275" r="19"/><circle cx="500" cy="275" r="19"/>
+    <circle cx="280" cy="403" r="19"/><circle cx="400" cy="403" r="19"/><circle cx="520" cy="403" r="19"/>
+  </g>
+  <text x="54" y="930" fill="#435043" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / SAGE CHANDERI</text>
+</svg>

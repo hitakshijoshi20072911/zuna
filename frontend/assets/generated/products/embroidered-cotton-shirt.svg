@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="embroidered cotton shirt sample">
+  <rect width="800" height="1000" fill="#e8e4d9"/>
+  <path d="M293 180l-146 82-86 159 108 57 53-82v330h356V396l53 82 108-57-86-159-146-82-68 94z" fill="#f8f2e7" stroke="#8d8a76" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M293 180l107 94 107-94M400 274v452" fill="none" stroke="#a66c55" stroke-width="12"/>
+  <g fill="#a66c55"><path d="M319 340q24-40 48 0-24 34-48 0zM433 340q24-40 48 0-24 34-48 0zM319 408q24-40 48 0-24 34-48 0zM433 408q24-40 48 0-24 34-48 0z"/></g>
+  <text x="54" y="930" fill="#4a4941" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / COTTON EMBROIDERY</text>
+</svg>

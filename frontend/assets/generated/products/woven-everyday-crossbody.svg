@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="woven everyday crossbody bag sample">
+  <rect width="800" height="1000" fill="#eae1d2"/>
+  <path d="M235 385c0-137 63-218 165-218s165 81 165 218" fill="none" stroke="#5d3b2b" stroke-width="28"/>
+  <path d="M180 375h440l-38 385H218z" fill="#a96e43"/>
+  <path d="M195 424h410M190 485h398M184 546h391M178 607h379M174 668h373" stroke="#e3c28c" stroke-width="18"/>
+  <path d="M260 376v384M330 376v384M400 376v384M470 376v384M540 376v384" stroke="#70452f" stroke-width="12" opacity=".7"/>
+  <rect x="348" y="515" width="104" height="88" rx="14" fill="#d4b273"/>
+  <text x="54" y="930" fill="#49352a" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / WOVEN CROSSBODY</text>
+</svg>

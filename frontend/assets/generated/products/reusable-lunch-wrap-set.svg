@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="reusable cotton lunch wrap set sample">
+  <rect width="800" height="1000" fill="#e9e4d7"/>
+  <path d="M180 310h440l-60 350H240z" fill="#6f8066"/>
+  <path d="M220 346h360l-44 278H264z" fill="#d6b77c"/>
+  <path d="M180 310l220 122 220-122M220 346l180 100 180-100" fill="none" stroke="#f4ead5" stroke-width="10"/>
+  <path d="M264 475h272M250 520h300M240 565h320" stroke="#9e5145" stroke-width="10" opacity=".85"/>
+  <circle cx="400" cy="705" r="16" fill="#6f8066"/>
+  <text x="54" y="930" fill="#46503e" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / REUSABLE COTTON</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="desktop cable organiser sample">
+  <rect width="800" height="1000" fill="#e7e3d8"/>
+  <path d="M138 670h524v40H138z" fill="#6c584b"/>
+  <path d="M220 710v85M578 710v85" stroke="#6c584b" stroke-width="26"/>
+  <rect x="262" y="540" width="276" height="115" rx="26" fill="#9d7055"/>
+  <path d="M318 540v-90c0-68 110-68 110 0v90M428 540v-55c0-65 110-65 110 0" fill="none" stroke="#465b69" stroke-width="17"/>
+  <circle cx="318" cy="450" r="13" fill="#d6b875"/><circle cx="428" cy="485" r="13" fill="#d6b875"/>
+  <path d="M290 580h220" stroke="#d8b27b" stroke-width="10"/>
+  <text x="54" y="930" fill="#4c443d" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / DESK ORGANISER</text>
+</svg>

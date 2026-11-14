@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="handwoven cushion cover sample">
+  <rect width="800" height="1000" fill="#e9e0d1"/>
+  <rect x="184" y="270" width="432" height="432" rx="22" fill="#b36b4f"/>
+  <rect x="218" y="304" width="364" height="364" fill="#dcae7c"/>
+  <path d="M218 350h364M218 405h364M218 460h364M218 515h364M218 570h364M218 625h364" stroke="#f1ddbd" stroke-width="14"/>
+  <path d="M260 304v364M315 304v364M370 304v364M425 304v364M480 304v364M535 304v364" stroke="#815441" stroke-width="12" opacity=".85"/>
+  <path d="M175 720l-35 42M220 720l-35 42M580 720l35 42M625 720l35 42" stroke="#815441" stroke-width="12"/>
+  <text x="54" y="930" fill="#584438" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / HANDWOVEN COTTON</text>
+</svg>

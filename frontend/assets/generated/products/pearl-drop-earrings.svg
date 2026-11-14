@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="freshwater pearl drop earrings sample">
+  <rect width="800" height="1000" fill="#f1e8dd"/>
+  <g fill="none" stroke="#bd9b55" stroke-width="13">
+    <path d="M270 236v120c0 52 49 73 49 122M530 236v120c0 52-49 73-49 122"/>
+    <circle cx="270" cy="206" r="21" fill="#bd9b55"/><circle cx="530" cy="206" r="21" fill="#bd9b55"/>
+  </g>
+  <g fill="#fffdf5" stroke="#d7cdbb" stroke-width="9">
+    <circle cx="319" cy="517" r="61"/><circle cx="481" cy="517" r="61"/>
+  </g>
+  <g fill="#ffffff" opacity=".8"><circle cx="299" cy="494" r="12"/><circle cx="461" cy="494" r="12"/></g>
+  <text x="54" y="930" fill="#654e3a" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / PEARL DROPS</text>
+</svg>

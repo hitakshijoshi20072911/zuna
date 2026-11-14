@@ -3,9 +3,9 @@
 **Project:** Zuna — AI-Powered Negotiation & Social Commerce Marketplace
 **Repository:** `https://github.com/hitakshijoshi20072911/zuna`
 **Frontend stack:** HTML5, CSS3, Vanilla JavaScript (ES6+)
-**Backend planned separately:** Python + FastAPI
-**Database planned separately:** SQLite + SQLAlchemy
-**Deployment target:** Vercel (static frontend initially)
+**Backend stack:** Python + FastAPI + SQLAlchemy
+**Database:** SQLite by default; configurable SQLAlchemy URL
+**Deployment target:** Static frontend on Vercel plus a separately hosted FastAPI service
 
 > This file is the working source of truth for the frontend roadmap. Update the status, implementation notes, screenshots, decisions and known issues at the end of every phase. Do not mark work complete unless it exists in the repository and has been checked.
 
@@ -23,7 +23,7 @@
 5. Additional static assets are allowed under `frontend/assets/`. Keep the application logic in the three primary files. `frontend/vercel.json` may be used for Vercel routing.
 6. Keep the code readable for a second-year undergraduate viva. Prefer named functions, small modules/sections, descriptive variables and comments explaining non-obvious logic.
 7. All user-facing data must be rendered safely. Escape dynamic text before inserting it into HTML. Do not use `eval`, `new Function`, inline event-handler attributes or unsafe HTML injection.
-8. The frontend must be backend-ready, but this frontend project must not implement the FastAPI backend or database.
+8. Keep frontend code in the existing static app and backend/database code under `backend/`; do not introduce a frontend framework or bundler.
 9. Never put Razorpay secret keys, Gemini keys, JWT secrets, passwords or other private credentials in HTML, CSS, JavaScript, Git history or Vercel client-side environment variables. Browser code may use only public configuration such as an API base URL.
 10. Do not make the interface pretend that a payment, login, seller settlement, AI prediction or API operation succeeded when it is only a demo. Clearly label mock/demo behaviour.
 11. Respect accessibility: semantic HTML, keyboard access, visible focus, labels, sufficient contrast, reduced-motion support and responsive layouts.
@@ -295,7 +295,26 @@ Create branch `manus/phase-05-integration-readiness`. Open a PR; do not merge.
 
 ---
 
-## GitHub, PR and deployment workflow
+## Phase 6 — Persistent backend and frontend integration
+
+**Goal:** Replace session-only mock interactions with persistent, authorized API workflows while retaining the existing visual design.
+
+### Delivered
+
+- FastAPI application with SQLAlchemy models, SQLite persistence, startup schema creation and illustrative catalogue seeding.
+- Scrypt password hashing, expiring signed bearer tokens, authenticated role guards and seller/product ownership checks.
+- API-backed authentication, catalogue, wishlist, product management, negotiation, seller pricing estimates, collaborations, referrals and orders.
+- Optional Razorpay order creation and server-side signature plus captured-payment verification. Checkout fails explicitly when credentials are not configured.
+- Same-origin local serving of the existing frontend and API; configurable API base for separate hosting.
+- API integration tests and setup/deployment documentation.
+
+**Status:** Implemented locally; no deployment or payment provider credentials configured.
+**Validation:** Backend integration tests, JavaScript syntax check, API/SPA browser workflow checks.
+**Known limitations:** Seeded fictional products are browse-only; AI and external social integrations are not enabled. Razorpay end-to-end testing requires server-side test credentials. Deploy SQLite only with persistent storage.
+
+---
+
+# GitHub, PR and deployment workflow
 
 1. Work only in the repository `hitakshijoshi20072911/zuna`.
 2. Inspect the current branch and repository before editing. Never assume files exist.
@@ -316,7 +335,7 @@ Create branch `manus/phase-05-integration-readiness`. Open a PR; do not merge.
 - Use `frontend/vercel.json` to rewrite `/` to `/home.html`; all internal navigation uses hash routes (`#/...`) so it does not require server-side route rewrites.
 - Confirm `/`, `/#/marketplace` and static CSS/JS assets load in the Vercel preview.
 - Connect production deployment to `main`; PR deployments should be preview deployments.
-- Do not configure backend URLs or secrets until the backend exists. A public API base URL can be added later; private keys must stay on the server.
+- Configure the public API base URL when the separately hosted FastAPI service is available; private keys must stay on the server.
 - If the Vercel project UI or account authorization is not available to the agent, provide the owner with exact setup instructions instead of claiming deployment has been completed.
 
 ---
@@ -328,8 +347,10 @@ Create branch `manus/phase-05-integration-readiness`. Open a PR; do not merge.
 - [ ] Phase 3 PR reviewed and merged
 - [ ] Phase 4 PR reviewed and merged
 - [ ] Phase 5 PR reviewed and merged
+- [ ] Phase 6 changes reviewed and deployed
 - [ ] Vercel preview verified
+- [ ] FastAPI production deployment verified
 - [ ] Production deployment from `main` verified
-- [ ] Frontend API contract reviewed with backend owner
+- [x] Frontend API contract implemented and documented
 - [ ] No secrets committed
 - [ ] Viva walkthrough and known limitations documented

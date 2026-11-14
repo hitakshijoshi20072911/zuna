@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="brushed brass cuff bracelet sample">
+  <rect width="800" height="1000" fill="#eee7d7"/>
+  <circle cx="400" cy="485" r="205" fill="none" stroke="#a87522" stroke-width="58"/>
+  <path d="M288 314c53-55 140-81 219-61M276 655c-52-54-80-130-73-207" fill="none" stroke="#e0bf71" stroke-width="16" stroke-linecap="round"/>
+  <path d="M382 263l36-54 36 54M318 681l-29 54-39-48" fill="none" stroke="#6e4a1d" stroke-width="15"/>
+  <circle cx="400" cy="485" r="137" fill="none" stroke="#d3a94d" stroke-width="5" stroke-dasharray="3 20"/>
+  <text x="54" y="930" fill="#56401f" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / BRUSHED BRASS</text>
+</svg>

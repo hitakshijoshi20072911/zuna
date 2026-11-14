@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="illustrated greeting card set sample">
+  <rect width="800" height="1000" fill="#e9e4d7"/>
+  <rect x="155" y="265" width="270" height="390" fill="#e0a37c" transform="rotate(-8 290 460)"/>
+  <rect x="370" y="300" width="270" height="390" fill="#f6efdf" stroke="#77805a" stroke-width="10" transform="rotate(7 505 495)"/>
+  <circle cx="506" cy="447" r="65" fill="#d8ae53"/>
+  <path d="M506 361v172M420 447h172M445 386l122 122M567 386L445 508" stroke="#fcf5e7" stroke-width="12"/>
+  <path d="M207 511q70-100 139 0t-4 108H220z" fill="#f2d5ad"/>
+  <text x="54" y="930" fill="#4d4a3e" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / GREETING CARD SET</text>
+</svg>

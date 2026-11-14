@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="indigo block-print saree sample">
+  <rect width="800" height="1000" fill="#e7e2d4"/>
+  <path d="M152 112h470l78 690-112 80-148-260-181 260-93-80 114-447z" fill="#263e6b"/>
+  <path d="M152 112h470l7 45H145zM440 626l112 196-112 80-34-60 112-80-112-196z" fill="#d6b77a"/>
+  <path d="M170 195h430M160 210h440M188 320h407M174 338h427M204 455h400M190 473h409" fill="none" stroke="#f3eee1" stroke-width="5" opacity=".8"/>
+  <g fill="#e8dcc3">
+    <circle cx="235" cy="265" r="13"/><circle cx="322" cy="265" r="13"/><circle cx="409" cy="265" r="13"/><circle cx="496" cy="265" r="13"/>
+    <circle cx="250" cy="390" r="13"/><circle cx="337" cy="390" r="13"/><circle cx="424" cy="390" r="13"/><circle cx="511" cy="390" r="13"/>
+  </g>
+  <text x="54" y="930" fill="#253658" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / INDIGO BLOCK PRINT</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="soy candle gift box sample">
+  <rect width="800" height="1000" fill="#eee6d8"/>
+  <rect x="148" y="330" width="504" height="390" fill="#c5a274"/>
+  <path d="M148 330l252-150 252 150-252 150z" fill="#dec99f"/>
+  <path d="M400 480v240" stroke="#8d684c" stroke-width="10"/>
+  <rect x="268" y="432" width="106" height="206" rx="20" fill="#f5efe3"/>
+  <rect x="426" y="432" width="106" height="206" rx="20" fill="#f5efe3"/>
+  <path d="M321 408c-32-37 14-50 0-88 45 39 13 61 0 88zM479 408c-32-37 14-50 0-88 45 39 13 61 0 88z" fill="#d98f4e"/>
+  <text x="54" y="930" fill="#634b3b" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / SOY CANDLE GIFT</text>
+</svg>

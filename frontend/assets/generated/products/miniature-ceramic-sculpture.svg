@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="miniature ceramic sculpture sample">
+  <rect width="800" height="1000" fill="#ede5d8"/>
+  <path d="M312 265c0-55 37-99 88-99s88 44 88 99c0 69-54 90-42 170l80 273c21 72-24 123-126 123s-147-51-126-123l80-273c12-80-42-101-42-170z" fill="#bd7455"/>
+  <path d="M321 454h158M302 570h196M286 680h228" fill="none" stroke="#f0d7b0" stroke-width="14" opacity=".85"/>
+  <path d="M360 229q40 37 80 0M342 376q58 35 116 0" fill="none" stroke="#754a3e" stroke-width="10"/>
+  <ellipse cx="400" cy="823" rx="190" ry="33" fill="#c6b39a" opacity=".5"/>
+  <text x="54" y="930" fill="#593f35" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / STUDIO CERAMIC</text>
+</svg>

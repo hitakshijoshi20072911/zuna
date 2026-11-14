@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="indigo block-print cotton scarf sample">
+  <rect width="800" height="1000" fill="#e9e4d7"/>
+  <path d="M190 125h420l-55 690H245z" fill="#29416d"/>
+  <path d="M225 165h350M215 780h350" stroke="#dfc17d" stroke-width="20"/>
+  <g fill="none" stroke="#f4ead2" stroke-width="8">
+    <path d="M280 250l35-35 35 35-35 35zM420 250l35-35 35 35-35 35zM280 390l35-35 35 35-35 35zM420 390l35-35 35 35-35 35z"/>
+    <circle cx="350" cy="535" r="28"/><circle cx="490" cy="535" r="28"/>
+    <path d="M280 650q35-50 70 0t70 0 70 0"/>
+  </g>
+  <text x="54" y="930" fill="#24375a" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / INDIGO COTTON</text>
+</svg>

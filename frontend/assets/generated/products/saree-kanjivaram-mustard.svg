@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="mustard Kanjivaram-inspired saree sample">
+  <rect width="800" height="1000" fill="#eee5d3"/>
+  <path d="M154 108h470l74 698-112 74-148-257-181 257-91-74 113-450z" fill="#c69b32"/>
+  <path d="M154 108h470l9 54H145zM436 625l113 196-111 73-36-62 111-72-111-196z" fill="#8a2633"/>
+  <path d="M154 108h470M145 162h488" fill="none" stroke="#f2dfa0" stroke-width="8"/>
+  <g fill="none" stroke="#8a2633" stroke-width="7">
+    <path d="M220 246c0-22 34-22 34 0 0 15-17 20-17 35 0-15-17-20-17-35zM330 246c0-22 34-22 34 0 0 15-17 20-17 35 0-15-17-20-17-35zM440 246c0-22 34-22 34 0 0 15-17 20-17 35 0-15-17-20-17-35z"/>
+    <path d="M250 372c0-22 34-22 34 0 0 15-17 20-17 35 0-15-17-20-17-35zM360 372c0-22 34-22 34 0 0 15-17 20-17 35 0-15-17-20-17-35zM470 372c0-22 34-22 34 0 0 15-17 20-17 35 0-15-17-20-17-35z"/>
+  </g>
+  <text x="54" y="930" fill="#5a3822" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / MUSTARD SILK</text>
+</svg>

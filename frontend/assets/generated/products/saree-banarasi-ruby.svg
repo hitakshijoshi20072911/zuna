@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="ruby red Banarasi-inspired saree sample">
+  <rect width="800" height="1000" fill="#f3e7d0"/>
+  <path d="M154 108h470l74 698-112 74-148-257-181 257-91-74 113-450z" fill="#8f1428"/>
+  <path d="M154 108h470l9 54H145zM436 625l113 196-111 73-36-62 111-72-111-196z" fill="#d9b25f"/>
+  <path d="M154 108h470M145 162h488" fill="none" stroke="#f3df9e" stroke-width="8"/>
+  <g fill="none" stroke="#f3df9e" stroke-width="7">
+    <path d="M205 245l27-27 27 27-27 27zM300 245l27-27 27 27-27 27zM395 245l27-27 27 27-27 27zM490 245l27-27 27 27-27 27z"/>
+    <path d="M195 355l20-20 20 20-20 20zM285 355l20-20 20 20-20 20zM375 355l20-20 20 20-20 20zM465 355l20-20 20 20-20 20z"/>
+  </g>
+  <text x="54" y="930" fill="#4a2024" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / RUBY BANARASI</text>
+</svg>

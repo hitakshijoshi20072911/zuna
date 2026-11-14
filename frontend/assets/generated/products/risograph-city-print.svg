@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="risograph city art print sample">
+  <rect width="800" height="1000" fill="#e7e1d5"/>
+  <rect x="145" y="135" width="510" height="660" fill="#f5eddb" stroke="#54453d" stroke-width="10"/>
+  <circle cx="500" cy="320" r="92" fill="#d16f50"/>
+  <path d="M190 650V455h108v195M298 650V382h118v268M416 650V482h93v168M509 650V340h100v310" fill="#304e64"/>
+  <path d="M190 650h419" stroke="#d2a847" stroke-width="24"/>
+  <path d="M240 490h22M348 420h18M348 464h18M550 385h18M550 430h18" stroke="#f3e4c4" stroke-width="12"/>
+  <text x="54" y="930" fill="#3c4448" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">ZUNA / CITY RISOGRAPH</text>
+</svg>
