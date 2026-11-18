@@ -9,6 +9,11 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DEFAULT_DATABASE = Path(__file__).resolve().parents[1] / "zuna.db"
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DATABASE.as_posix()}")
+# Render/Heroku-style Postgres URLs start with postgres:// or postgresql://; SQLAlchemy needs a driver name.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len("postgres://"):]
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len("postgresql://"):]
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
@@ -28,6 +33,9 @@ def ensure_order_checkout_columns(database_engine: Engine = engine) -> None:
         },
         "product_orders": {
             "size": "VARCHAR(30)",
+        },
+        "products": {
+            "min_price": "INTEGER",
         },
     }
     with database_engine.begin() as connection:

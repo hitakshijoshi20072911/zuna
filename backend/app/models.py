@@ -41,6 +41,7 @@ class Product(Base):
     region: Mapped[str] = mapped_column(String(100), default="India")
     price: Mapped[int] = mapped_column(Integer)
     cost: Mapped[int] = mapped_column(Integer, default=0)
+    min_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     image: Mapped[str] = mapped_column(String(500))
     offers: Mapped[bool] = mapped_column(Boolean, default=True)
     available: Mapped[bool] = mapped_column(Boolean, default=True, index=True)

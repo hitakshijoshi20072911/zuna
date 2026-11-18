@@ -291,7 +291,7 @@ class MarketplaceApiTests(unittest.TestCase):
         _, second_buyer_headers = self.register("buyer", "sample.seller-accepted@example.com")
         seller_offer = self.client.post(
             f"/api/v1/products/{product['id']}/offers",
-            json={"amount": 2200},
+            json={"amount": 2700},
             headers=second_buyer_headers,
         )
         self.assertEqual(seller_offer.status_code, 201, seller_offer.text)
@@ -300,7 +300,7 @@ class MarketplaceApiTests(unittest.TestCase):
             headers=seller_headers,
         )
         self.assertEqual(seller_accepted.status_code, 200, seller_accepted.text)
-        self.assertEqual(seller_accepted.json()["acceptedPrice"], 2200)
+        self.assertEqual(seller_accepted.json()["acceptedPrice"], 2700)
 
         original_request = main_module._razorpay_request
         original_key_id = main_module.RAZORPAY_KEY_ID
@@ -339,7 +339,7 @@ class MarketplaceApiTests(unittest.TestCase):
                 headers=second_buyer_headers,
             )
             self.assertEqual(seller_accepted_checkout.status_code, 201, seller_accepted_checkout.text)
-            self.assertEqual(seller_accepted_checkout.json()["amount"], 2200)
+            self.assertEqual(seller_accepted_checkout.json()["amount"], 2700)
             self.assertEqual(seller_accepted_checkout.json()["payment_status"], "cod_pending")
         finally:
             main_module._razorpay_request = original_request
