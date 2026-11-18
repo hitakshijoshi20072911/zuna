@@ -60,3 +60,7 @@ The API tests cover authentication, catalogue reads, seller ownership, offer neg
 ## Deployment
 
 Deploy FastAPI and the database as a backend service with persistent disk storage for SQLite (or configure a managed database). Static frontend hosting may remain on Vercel; set its `zuna-api-base-url` to the deployed API base and configure `ZUNA_ALLOWED_ORIGINS` on the API. Do not expose Razorpay secrets, JWT signing secrets or database credentials to the browser. SQLite files on ephemeral serverless storage are not persistent; use a managed database for that deployment model.
+
+## Deployment (Render)
+See `render.yaml` and `docs/member3-notes.md`. Required env vars: `ZUNA_TOKEN_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`;
+recommended: `DATABASE_URL` (Postgres), `RAZORPAY_WEBHOOK_SECRET`; optional: `GEMINI_API_KEY`.

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class UserCreate(BaseModel):
@@ -49,6 +49,14 @@ class ProductWrite(BaseModel):
     image: str = Field(min_length=1, max_length=500)
     offers: bool
     description: str = Field(min_length=1, max_length=3000)
+    # Seller's lowest acceptable price. Omit to keep/use the automatic floor; send null to reset to automatic.
+    minPrice: int | None = Field(default=None, ge=1, le=10_000_000)
+
+    @model_validator(mode="after")
+    def min_price_not_above_price(self):
+        if self.minPrice is not None and self.minPrice > self.price:
+            raise ValueError("Minimum price cannot be higher than the listing price.")
+        return self
 
 
 class OfferCreate(BaseModel):
@@ -71,10 +79,23 @@ class OpportunityCreate(BaseModel):
 
 
 class PricingRequest(BaseModel):
-    unit_cost: int = Field(gt=0, le=10_000_000)
+    # Either a single unit_cost (existing UI) or the four cost components from the project document.
+    unit_cost: int | None = Field(default=None, gt=0, le=10_000_000)
+    material_cost: int = Field(default=0, ge=0, le=10_000_000)
+    labour_cost: int = Field(default=0, ge=0, le=10_000_000)
+    packaging_cost: int = Field(default=0, ge=0, le=10_000_000)
+    other_cost: int = Field(default=0, ge=0, le=10_000_000)
+    category: str | None = Field(default=None, max_length=100)
     target_margin_percent: float = Field(gt=0, le=75)
     inventory_age_days: int = Field(ge=0, le=10_000)
-    demand_index: int = Field(ge=0, le=100)
+    demand_index: int | None = Field(default=None, ge=0, le=100)
+    demand: Literal["low", "medium", "high"] | None = None
+
+    @model_validator(mode="after")
+    def needs_a_cost(self):
+        if not (self.unit_cost or self.material_cost + self.labour_cost + self.packaging_cost + self.other_cost > 0):
+            raise ValueError("Provide unit_cost or at least one cost component.")
+        return self
 
 
 class CheckoutCreate(BaseModel):

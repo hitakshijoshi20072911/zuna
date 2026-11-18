@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +21,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from . import pricing
 from .db import Base, engine, ensure_order_checkout_columns, get_db
 from .models import (
     CollaborationOpportunity,
@@ -56,6 +57,10 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = ROOT_DIR / "frontend"
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+# Negotiation timing (Member 3): how long an offer stays open, and how long an accepted price stays payable.
+OFFER_EXPIRY_HOURS = int(os.getenv("ZUNA_OFFER_EXPIRY_HOURS", "72"))
+CHECKOUT_WINDOW_HOURS = int(os.getenv("ZUNA_CHECKOUT_WINDOW_HOURS", "24"))
 API_PREFIX = "/api/v1"
 DELIVERY_TIME_WINDOW = "9:00 AM–6:00 PM IST"
 DELIVERY_BUSINESS_DAYS = 5
@@ -134,6 +139,7 @@ allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=os.getenv("ZUNA_ALLOWED_ORIGIN_REGEX") or None,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
@@ -142,6 +148,37 @@ app.add_middleware(
 
 def _serialize_user(user: User) -> dict[str, Any]:
     return {"id": user.id, "name": user.name, "email": user.email, "role": user.role}
+
+
+def _effective_min_price(product: Product) -> int:
+    """Seller's minimum acceptable price: the stored value, or an automatic floor from cost, margin and stock age."""
+    if product.min_price is not None:
+        return min(product.min_price, product.price)
+    return pricing.default_negotiation_floor(product.price, product.cost, product.age)
+
+
+def _offer_insight(offer: Offer) -> dict[str, Any] | None:
+    """Seller-facing hint on a pending offer: is it within range, and should long-unsold stock accept it?"""
+    if offer.status != "pending":
+        return None
+    product = offer.product
+    floor = _effective_min_price(product)
+    owned = product.owner_id is not None
+    within_range = offer.offered_price >= floor
+    if within_range and product.age >= pricing.CLEARANCE_AGE_DAYS:
+        kind = "consider_accepting"
+        message = (
+            f"Your product has been listed for {product.age} days. This offer is within your acceptable price range. "
+            "Consider accepting it to improve inventory turnover."
+        )
+    elif within_range:
+        kind = "within_range"
+        message = "This offer meets your minimum acceptable price."
+    else:
+        kind = "below_minimum"
+        minimum = f" of {pricing._rupees(floor)}" if owned else ""
+        message = f"This offer is below your minimum acceptable price{minimum}. Counter at or above it, or reject."
+    return {"type": kind, "withinRange": within_range, "inventoryAgeDays": product.age, "message": message}
 
 
 def _serialize_product(product: Product, include_cost: bool = False) -> dict[str, Any]:
@@ -174,6 +211,8 @@ def _serialize_product(product: Product, include_cost: bool = False) -> dict[str
     }
     if include_cost:
         serialized["cost"] = product.cost
+        serialized["minPrice"] = _effective_min_price(product)
+        serialized["minPriceIsCustom"] = product.min_price is not None
     return serialized
 
 
@@ -190,6 +229,7 @@ def _serialize_offer(offer: Offer, include_cost: bool = False) -> dict[str, Any]
         "acceptedPrice": offer.accepted_price,
         "status": offer.status,
         "expiresAt": offer.expires_at.isoformat(),
+        "insight": _offer_insight(offer) if include_cost else None,
         "history": [
             {
                 "actor": event.actor.name,
@@ -234,6 +274,8 @@ def _date_is_expired(value: datetime) -> bool:
 
 def _expire_offer(offer: Offer, db: Session) -> None:
     if offer.status in {"pending", "countered", "accepted"} and _date_is_expired(offer.expires_at):
+        if offer.status == "accepted" and db.scalar(select(Order.id).where(Order.offer_id == offer.id)) is not None:
+            return  # checkout already started; the order keeps the agreed price
         offer.status = "expired"
         db.add(OfferEvent(
             offer=offer,
@@ -255,6 +297,17 @@ def _get_offer(offer_id: int, db: Session) -> Offer:
         raise HTTPException(status_code=404, detail="Offer not found.")
     _expire_offer(offer, db)
     return offer
+
+
+def _require_at_least_minimum(product: Product, amount: int, action: str) -> None:
+    """Backend guard: a seller can never accept or counter below their minimum acceptable price."""
+    floor = _effective_min_price(product)
+    if amount < floor:
+        shown = f" of {pricing._rupees(floor)}" if product.owner_id is not None else ""
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot {action} below the minimum acceptable price{shown}. Counter at or above it, or reject the offer.",
+        )
 
 
 def _require_offer_access(offer: Offer, user: User) -> None:
@@ -414,6 +467,10 @@ def _apply_product_write(product: Product, payload: ProductWrite, user: User) ->
     product.seller = f"{user.name}'s studio"
     product.story = "A product listing managed by its verified Zuna seller account."
     product.region = "India"
+    if "minPrice" in payload.model_fields_set:
+        product.min_price = payload.minPrice
+    if product.min_price is not None and product.min_price > product.price:
+        product.min_price = product.price
 
 
 @app.post(f"{API_PREFIX}/products", status_code=status.HTTP_201_CREATED)
@@ -474,27 +531,28 @@ def suggest_price(
     payload: PricingRequest,
     _seller: User = Depends(require_role("seller")),
 ) -> dict[str, Any]:
-    target_margin = payload.target_margin_percent / 100
-    base_price = payload.unit_cost / (1 - target_margin)
-    age_discount = min(0.15, max(0, payload.inventory_age_days - 30) * 0.001)
-    demand_adjustment = (payload.demand_index - 50) / 50 * 0.1
-    adjusted = base_price * (1 - age_discount) * (1 + demand_adjustment)
-    suggested_price = max(payload.unit_cost, int(round(adjusted / 10) * 10))
-    actual_margin = (suggested_price - payload.unit_cost) / suggested_price * 100
-    return {
-        "unitCost": payload.unit_cost,
-        "targetMarginPercent": payload.target_margin_percent,
-        "inventoryAgeDays": payload.inventory_age_days,
-        "demandIndex": payload.demand_index,
-        "basePrice": int(round(base_price)),
-        "suggestedPrice": suggested_price,
-        "actualMarginPercent": round(actual_margin, 1),
-        "adjustmentPercent": round(((1 - age_discount) * (1 + demand_adjustment) - 1) * 100, 1),
-        "explanation": (
-            "This transparent estimate starts with cost and target margin, then applies "
-            "bounded inventory-age and demand adjustments. It is not an AI prediction."
-        ),
+    components = {
+        "material": payload.material_cost,
+        "labour": payload.labour_cost,
+        "packaging": payload.packaging_cost,
+        "other": payload.other_cost,
     }
+    component_total = sum(components.values())
+    total_cost = component_total if component_total > 0 else int(payload.unit_cost or 0)
+    demand_index = (
+        payload.demand_index
+        if payload.demand_index is not None
+        else pricing.DEMAND_LABEL_TO_INDEX.get(payload.demand or "medium", 50)
+    )
+    result = pricing.calculate_price(
+        total_cost=total_cost,
+        cost_breakdown=components if component_total > 0 else None,
+        target_margin_percent=payload.target_margin_percent,
+        inventory_age_days=payload.inventory_age_days,
+        demand_index=demand_index,
+        category=payload.category,
+    )
+    return pricing.with_ai_explanation(result)
 
 
 @app.get(f"{API_PREFIX}/users/me/wishlist")
@@ -561,7 +619,7 @@ def create_offer(
         buyer_id=buyer.id,
         offered_price=payload.amount,
         status="pending",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=3),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=OFFER_EXPIRY_HOURS),
     )
     db.add(offer)
     db.flush()
@@ -607,8 +665,12 @@ def counter_offer(
         raise HTTPException(status_code=409, detail="This offer can no longer be changed.")
     if payload.amount > offer.product.price:
         raise HTTPException(status_code=422, detail="A counter cannot be higher than the listing price.")
+    if payload.amount < offer.offered_price:
+        raise HTTPException(status_code=422, detail="A counter cannot be lower than the buyer's offer.")
+    _require_at_least_minimum(offer.product, payload.amount, "counter")
     offer.counter_price = payload.amount
     offer.status = "countered"
+    offer.expires_at = datetime.now(timezone.utc) + timedelta(hours=OFFER_EXPIRY_HOURS)
     db.add(OfferEvent(offer=offer, actor_id=seller.id, amount=payload.amount, status="countered"))
     db.commit()
     return _serialize_offer(_get_offer(offer.id, db), include_cost=True)
@@ -628,6 +690,7 @@ def accept_offer(
     ):
         actor_id = user.id
         accepted_price = offer.counter_price or offer.offered_price
+        _require_at_least_minimum(offer.product, accepted_price, "accept")
     elif (
         user.role == "buyer"
         and offer.buyer_id == user.id
@@ -648,6 +711,8 @@ def accept_offer(
         raise HTTPException(status_code=409, detail="There is no unreserved stock available for this offer.")
     offer.status = "accepted"
     offer.accepted_price = accepted_price
+    # Payment lock: the agreed price is payable for a limited time, and is stored server-side on the offer.
+    offer.expires_at = datetime.now(timezone.utc) + timedelta(hours=CHECKOUT_WINDOW_HOURS)
     db.add(OfferEvent(offer=offer, actor_id=actor_id, amount=offer.accepted_price, status="accepted"))
     db.commit()
     return _serialize_offer(_get_offer(offer.id, db), include_cost=user.role == "seller")
@@ -1167,15 +1232,71 @@ def verify_payment(
         raise HTTPException(status_code=409, detail="Verified payment amount does not match this order.")
     if not product.available or product.stock_qty < 1:
         raise HTTPException(status_code=409, detail="This product sold out before payment completed.")
+    _mark_order_paid(db, order, product_order, payload.razorpay_payment_id)
+    return _serialize_order(order) if order is not None else _serialize_product_order(product_order)
+
+
+def _mark_order_paid(db: Session, order: Order | None, product_order: ProductOrder | None, payment_id: str) -> None:
+    """Single place that turns an order into 'paid' (used by browser verification and the webhook)."""
+    checkout_order = order or product_order
+    product = order.offer.product if order is not None else product_order.product
     checkout_order.payment_status = "paid"
-    checkout_order.razorpay_payment_id = payload.razorpay_payment_id
-    _deduct_product_stock(product)
+    checkout_order.razorpay_payment_id = payment_id
+    if product.available and product.stock_qty >= 1:
+        _deduct_product_stock(product)
     if order is not None and order.referral_id:
         referral = db.get(Referral, order.referral_id)
         if referral is not None:
             referral.conversions += 1
     db.commit()
-    return _serialize_order(order) if order is not None else _serialize_product_order(product_order)
+
+
+@app.post(f"{API_PREFIX}/payments/webhook")
+async def razorpay_webhook(request: Request, db: Session = Depends(get_db)) -> dict[str, str]:
+    """Razorpay server-to-server confirmation, so an order is still marked paid if the buyer closes the tab.
+
+    Configure the same secret in the Razorpay dashboard webhook and in RAZORPAY_WEBHOOK_SECRET.
+    """
+    if not RAZORPAY_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Webhook secret is not configured.")
+    body = await request.body()
+    expected = hmac.new(RAZORPAY_WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, request.headers.get("X-Razorpay-Signature", "")):
+        raise HTTPException(status_code=400, detail="Webhook signature is invalid.")
+    try:
+        event = json.loads(body)
+        event_name = event.get("event")
+        payment = event["payload"]["payment"]["entity"]
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return {"status": "ignored"}
+    if event_name not in {"payment.captured", "order.paid"}:
+        return {"status": "ignored"}
+    razorpay_order_id = payment.get("order_id")
+    order = db.scalar(
+        select(Order)
+        .options(joinedload(Order.offer).joinedload(Offer.product))
+        .where(Order.razorpay_order_id == razorpay_order_id)
+    )
+    product_order = None
+    if order is None:
+        product_order = db.scalar(
+            select(ProductOrder)
+            .options(joinedload(ProductOrder.product))
+            .where(ProductOrder.razorpay_order_id == razorpay_order_id)
+        )
+    checkout_order = order or product_order
+    if checkout_order is None or checkout_order.payment_method == "cod":
+        return {"status": "ignored"}
+    if checkout_order.payment_status == "paid":
+        return {"status": "already_paid"}
+    if (
+        payment.get("status") != "captured"
+        or int(payment.get("amount", 0)) != checkout_order.amount * 100
+        or payment.get("currency") != checkout_order.currency
+    ):
+        return {"status": "mismatch"}
+    _mark_order_paid(db, order, product_order, payment["id"])
+    return {"status": "paid"}
 
 
 @app.get("/")

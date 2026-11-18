@@ -1,0 +1,27 @@
+# Render Blueprint: one web service serves the API *and* the frontend (same origin, no CORS needed).
+services:
+  - type: web
+    name: zuna
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: ZUNA_ENV
+        value: production
+      - key: ZUNA_TOKEN_SECRET
+        generateValue: true
+      # Paste these in the Render dashboard (sync: false = not stored in git):
+      - key: DATABASE_URL        # Postgres Internal URL (recommended); leave unset to use SQLite
+        sync: false
+      - key: RAZORPAY_KEY_ID     # rzp_test_...
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: GEMINI_API_KEY      # optional AI explanation layer
+        sync: false
